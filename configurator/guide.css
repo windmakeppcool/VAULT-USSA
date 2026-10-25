@@ -1,0 +1,770 @@
+/* ==========================================================================
+   VAULT / USSA — 装配指南（阶段 4）
+   沿用「纸张 + 工程图」：墨色边框、硬阴影、等宽小字、橙色强调。
+   仅作用于 #view-guide / .guide-*，不覆盖配置台其余样式。
+   ========================================================================== */
+
+#view-guide {
+  --guide-shadow: rgba(23, 23, 19, 0.08);
+}
+
+.guide-body { min-width: 0; }
+
+/* ---------- 分区 tabs ---------- */
+
+.guide-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  border: 1px solid var(--ink);
+  background: var(--paper-hi);
+  box-shadow: 5px 5px 0 var(--guide-shadow);
+}
+
+.guide-tab {
+  flex: 1 1 170px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 11px 14px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.guide-tab:last-child { border-right: 0; }
+
+.guide-tab span {
+  grid-row: 1 / 3;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.guide-tab b {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.guide-tab i {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.guide-tab:hover { background: var(--paper); }
+
+.guide-tab.is-active {
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+
+.guide-tab.is-active i { color: rgba(248, 245, 236, 0.6); }
+
+.guide-tab:focus-visible,
+.guide-step-btn:focus-visible,
+.guide-mount-card:focus-visible,
+.guide-btn:focus-visible,
+.guide-pdf:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- 分步组装 ---------- */
+
+.guide-assembly {
+  display: grid;
+  grid-template-columns: 238px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.guide-step-nav {
+  min-width: 0;
+  border: 1px solid var(--ink);
+  background: var(--paper-hi);
+  box-shadow: 5px 5px 0 var(--guide-shadow);
+}
+
+.guide-step-nav header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.guide-step-nav header b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.guide-step-nav header span {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.guide-progress {
+  height: 5px;
+  background: var(--paper-dim);
+  border-bottom: 1px solid var(--line);
+}
+
+.guide-progress i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.22s var(--ease);
+}
+
+.guide-step-nav ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 560px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.guide-step-btn {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  background: transparent;
+  text-align: left;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.guide-step-nav li:last-child .guide-step-btn { border-bottom: 0; }
+
+.guide-step-btn span {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.guide-step-btn b {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.guide-step-btn:hover { background: var(--paper); }
+
+.guide-step-btn.is-active {
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+
+.guide-step-btn.is-active span { color: var(--accent); }
+
+/* 步骤卡片 */
+
+.guide-step-card {
+  min-width: 0;
+  border: 1px solid var(--ink);
+  background: var(--paper-hi);
+  box-shadow: 8px 8px 0 var(--guide-shadow);
+}
+
+.guide-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--ink);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.guide-step-head b {
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.guide-step-body { padding: 15px 18px 18px; }
+
+.guide-kicker {
+  display: block;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.guide-step-body h2 {
+  margin: 5px 0 8px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.08;
+  letter-spacing: 0.005em;
+}
+
+.guide-step-body p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: #3a3a32;
+}
+
+.guide-step-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.guide-count {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 图片容器 */
+
+.guide-figure {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin: 0;
+  min-height: 180px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.guide-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.guide-figure-missing { display: none; }
+
+[data-figure].is-missing img,
+[data-figure].is-missing .guide-spot { display: none; }
+
+[data-figure].is-missing .guide-figure-missing {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 180px;
+  padding: 22px 16px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  line-height: 1.7;
+  color: var(--muted);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--paper-dim) 0,
+    var(--paper-dim) 6px,
+    var(--paper-hi) 6px,
+    var(--paper-hi) 12px
+  );
+}
+
+/* 五金参考 */
+
+.guide-hardware {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.guide-hw-card {
+  padding: 13px 16px 15px;
+  border: 1px solid var(--ink);
+  background: rgba(248, 245, 236, 0.78);
+  box-shadow: 5px 5px 0 var(--guide-shadow);
+}
+
+.guide-hw-card header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.guide-hw-card h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.guide-hw-card header span {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+
+.guide-hw-card ul {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+
+.guide-hw-card li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 12px;
+}
+
+.guide-hw-card li:last-child { border-bottom: 0; }
+
+.guide-hw-card li b {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.guide-hw-card p {
+  margin: 6px 0 10px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.guide-hw-card .guide-pdf { margin-top: 2px; }
+
+/* ---------- 安装与改装 ---------- */
+
+.guide-mount-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(166px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.guide-mount-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--ink);
+  background: rgba(248, 245, 236, 0.78);
+  box-shadow: 4px 4px 0 var(--guide-shadow);
+  text-align: left;
+  transition: transform 0.16s var(--ease), box-shadow 0.16s var(--ease),
+    background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.guide-mount-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 rgba(23, 23, 19, 0.12);
+}
+
+.guide-mount-card.is-active {
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+
+.guide-mount-card.is-active small { color: rgba(248, 245, 236, 0.62); }
+
+.guide-mount-thumb {
+  position: relative;
+  display: block;
+  background: #fff;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.guide-mount-thumb img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.guide-mount-thumb.is-missing .guide-figure-missing { min-height: 110px; }
+
+.guide-mount-card b {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.guide-mount-card small {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.guide-mount-detail {
+  padding: 15px 18px 18px;
+  border: 1px solid var(--ink);
+  background: var(--paper-hi);
+  box-shadow: 8px 8px 0 var(--guide-shadow);
+}
+
+.guide-mount-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.guide-mount-head h2 {
+  margin: 4px 0 0;
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.guide-mount-intro {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.guide-install {
+  list-style: none;
+  margin: 12px 0 16px;
+  padding: 0;
+}
+
+.guide-install li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.guide-install li:last-child { border-bottom: 0; }
+
+.guide-install b {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.guide-install p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.guide-mount-detail .guide-figure {
+  border: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+
+/* ---------- 小零件图鉴 ---------- */
+
+.guide-parts-group + .guide-parts-group { margin-top: 26px; }
+
+.guide-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.guide-group-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.guide-group-head span {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.guide-parts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+  gap: 16px;
+}
+
+.guide-part-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--ink);
+  background: var(--paper-hi);
+  box-shadow: 5px 5px 0 var(--guide-shadow);
+}
+
+.guide-part-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.guide-part-head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.guide-part-head span {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.guide-part-figure {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.guide-part-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.guide-part-figure .guide-figure-missing { min-height: 200px; }
+
+.guide-spot {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  padding: 2px 5px;
+  border: 1px solid rgba(248, 245, 236, 0.7);
+  background: rgba(23, 23, 19, 0.88);
+  color: var(--paper-hi);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+}
+
+.guide-part-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: #3a3a32;
+}
+
+.guide-part-card .guide-pdf {
+  margin-top: auto;
+  margin-left: 0;
+  align-self: flex-start;
+}
+
+.guide-roles {
+  margin-top: 20px;
+  padding: 12px 16px 14px;
+  border: 1px solid var(--ink);
+  background: rgba(248, 245, 236, 0.6);
+}
+
+.guide-roles header span {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+
+.guide-roles div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 20px;
+  margin-top: 8px;
+}
+
+.guide-roles b { font-size: 11.5px; }
+
+.guide-roles p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- 按钮与链接 ---------- */
+
+.guide-btn {
+  padding: 7px 12px;
+  border: 1px solid var(--ink);
+  background: var(--paper-hi);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.guide-btn:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+
+.guide-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.guide-btn.is-accent {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.guide-btn.is-accent:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.guide-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.guide-pdf:hover {
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+
+.guide-empty {
+  margin: 0;
+  padding: 28px 20px;
+  border: 1px dashed var(--line);
+  background: var(--paper-hi);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ---------- 响应式 ---------- */
+
+@media (max-width: 1100px) {
+  .guide-assembly { grid-template-columns: 214px minmax(0, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .guide-assembly { grid-template-columns: 1fr; }
+
+  .guide-step-nav ol {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
+  }
+
+  .guide-step-nav li:nth-child(odd) .guide-step-btn {
+    border-right: 1px dashed var(--line);
+  }
+}
+
+@media (max-width: 820px) {
+  .guide-tab { flex: 1 1 45%; }
+
+  .guide-mount-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .guide-parts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .guide-step-body { padding: 13px 14px 15px; }
+
+  .guide-mount-detail { padding: 13px 14px 15px; }
+
+  .guide-hardware { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .guide-tab {
+    flex-basis: 100%;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .guide-tab:last-child { border-bottom: 0; }
+
+  .guide-step-nav ol { grid-template-columns: 1fr; }
+
+  .guide-step-nav li:nth-child(odd) .guide-step-btn { border-right: 0; }
+
+  .guide-mount-grid,
+  .guide-parts-grid { grid-template-columns: 1fr; }
+
+  .guide-step-bar .guide-btn { flex: 1 1 auto; }
+
+  .guide-pdf {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+}

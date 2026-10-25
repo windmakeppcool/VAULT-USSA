@@ -1,0 +1,17 @@
+VAULT 参考资产导入报告
+
+manifest entries : 756
+exact            : 723
+fallback         : 20
+unmatched        : 13
+  new STL        : 13（无对应参考模型，前端回退占位缩略图）
+  ambiguous      : 0（存在多个同名候选，需人工核对）
+coverage exact   : 95.63%
+coverage total   : 98.28%
+webp copied      : 0
+preview missing  : 0
+mapping written  : D:\Projects\261020_VAULT_USSA\configurator\data\vault-3d.js
+missing written  : D:\Projects\261020_VAULT_USSA\configurator\data\vault-3d.missing.txt（13 条）
+
+[preview missing]
+(none)

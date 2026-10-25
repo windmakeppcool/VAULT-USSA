@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VAULT / USSA — STL 配置台</title>
+  <meta name="description" content="VAULT USSA 模块化抽屉系统 STL 配置器：自由组合抽屉、收纳箱与改装件，输出打印清单。">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="preview.css">
+  <link rel="stylesheet" href="manuals.css">
+  <link rel="stylesheet" href="guide.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="masthead">
+      <div class="brand">
+        <div class="brand-mark">VAULT<span class="brand-slash">/</span>USSA</div>
+        <div class="brand-meta">
+          <span class="brand-tag">STL CONFIGURATOR</span>
+          <span class="brand-sub">模块化抽屉系统 · 打印部件配置台</span>
+        </div>
+      </div>
+
+      <nav class="rail" aria-label="主导航">
+        <button class="rail-btn is-active" data-tab="build">
+          <span>01</span><b>构型</b><i>BUILD</i>
+        </button>
+        <button class="rail-btn" data-tab="catalog">
+          <span>02</span><b>部件库</b><i>PARTS</i>
+        </button>
+        <button class="rail-btn" data-tab="templates"><span>03</span><b>模板</b><i>SCENES</i></button>
+        <button class="rail-btn" data-tab="guide"><span>04</span><b>指南</b><i>GUIDE</i></button>
+      </nav>
+
+      <div class="chrome">
+        <div class="mast-stats">
+          <div><b id="stat-files">—</b><span>STL</span></div>
+          <div><b id="stat-size">—</b><span>GB LIBRARY</span></div>
+          <div><b id="stat-fams">—</b><span>FAMILIES</span></div>
+        </div>
+        <button class="bom-fab" id="bom-fab" aria-label="打开打印清单">
+          <span>打印清单</span><b id="bom-fab-count">0</b>
+        </button>
+      </div>
+    </header>
+
+    <main class="work">
+      <section class="view view--build" id="view-build">
+        <aside class="ap" id="assembly-preview" aria-label="组合预览">
+          <div class="ap-stage" id="ap-stage">
+            <div class="ap-host" id="ap-host"></div>
+            <div class="ap-overlay" id="ap-overlay">
+              <span class="ap-cube" aria-hidden="true">◇</span>
+              <p class="ap-status" id="ap-status" role="status" aria-live="polite">调整左侧选项以预览组合</p>
+              <progress class="ap-progress" id="ap-progress" aria-label="组合模型读取进度"></progress>
+            </div>
+          </div>
+
+          <header class="ap-head">
+            <span class="ap-kicker">LIVE ASSEMBLY</span>
+            <b id="ap-title">组合预览</b>
+            <span class="ap-stats" id="ap-stats">—</span>
+          </header>
+
+          <div class="ap-dock">
+            <div class="ap-explode">
+              <label for="ap-explode">展开 <em>EXPLODE</em></label>
+              <input id="ap-explode" type="range" min="0" max="100" value="0" step="1" aria-label="展开距离">
+              <span id="ap-explode-val">0%</span>
+            </div>
+            <div class="ap-bar">
+              <div class="ap-views" role="group" aria-label="视角">
+                <button type="button" data-ap-view="reset" disabled>重置</button>
+                <button type="button" data-ap-view="front" disabled>正视</button>
+                <button type="button" data-ap-view="top" disabled>俯视</button>
+              </div>
+              <span class="ap-note" id="ap-note">按类别自动堆叠</span>
+            </div>
+          </div>
+        </aside>
+
+        <aside class="console" aria-label="构型面板">
+          <header class="console-head">
+            <div class="console-title">
+              <span class="console-kicker">CONFIGURATOR / 01</span>
+              <h1>自由构型<em>ASSEMBLE YOUR VAULT</em></h1>
+            </div>
+            <div class="console-code">
+              <span id="sheet-title">SHEET 01 — DRAWER</span>
+              <b id="sheet-code">S / 3 / 1F</b>
+            </div>
+          </header>
+
+          <div class="mode-tabs" id="mode-tabs" role="tablist">
+            <button class="mode-tab is-active" data-mode="drawer" role="tab"><span>01</span><b>抽屉</b><i>DRAWER</i></button>
+            <button class="mode-tab" data-mode="sustainer" role="tab"><span>02</span><b>收纳箱</b><i>SUSTAINER</i></button>
+            <button class="mode-tab" data-mode="mod" role="tab"><span>03</span><b>改装件</b><i>MODIFICATION</i></button>
+          </div>
+
+          <div class="console-scroll">
+            <div class="build-body" id="build-body"></div>
+          </div>
+
+          <section class="color-studio is-collapsed" id="color-studio" aria-label="三维配色工作台">
+            <header class="cs-head">
+              <div>
+                <span class="cs-kicker">COLOR STUDIO / 耗材配色</span>
+                <h2>三维配色</h2>
+              </div>
+              <div class="cs-head-right">
+                <label class="cs-scheme"><span>方案 SCHEME</span>
+                  <select id="cs-scheme"></select>
+                </label>
+                <button type="button" id="cs-reset" class="cs-ghost" title="恢复默认配色" aria-label="恢复默认配色">↺</button>
+                <button type="button" id="cs-toggle" class="cs-ghost" aria-expanded="false" aria-controls="cs-body">展开</button>
+              </div>
+            </header>
+            <div class="cs-body" id="cs-body">
+              <div class="cs-colors">
+                <div class="cs-label">画笔颜色 <em>BRUSH</em></div>
+                <div class="cs-swatches" id="cs-swatches"></div>
+                <label class="cs-custom">自定义<input type="color" id="cs-brush" value="#ff6b00"></label>
+                <div class="cs-dye-row">
+                  <button type="button" id="cs-dye" class="cs-dye" aria-pressed="false">开始染色</button>
+                  <span id="cs-dye-note">开启后点击 3D 部件或部位列表即可上色</span>
+                </div>
+              </div>
+              <div class="cs-parts-wrap">
+                <div class="cs-label">部位 <em>PARTS</em><span id="cs-part-count"></span></div>
+                <div class="cs-parts" id="cs-parts"></div>
+                <p class="cs-hint">实时预览显示模块 / 盒体 / 顶盖 / 底板 / 面板；小件颜色用于清单。</p>
+              </div>
+              <div class="cs-actions">
+                <button type="button" id="cs-save">保存配色方案</button>
+                <button type="button" id="cs-delete" class="cs-danger">删除方案</button>
+                <button type="button" id="cs-export">导出 JSON</button>
+                <button type="button" id="cs-import-btn">导入 JSON</button>
+                <button type="button" id="cs-copy">复制配色清单</button>
+                <input type="file" id="cs-import" accept="application/json,.json" hidden>
+                <p>色值为屏幕参考，实际颜色以耗材色卡为准。</p>
+              </div>
+            </div>
+          </section>
+
+          <footer class="sheet-foot" id="build-foot"></footer>
+        </aside>
+      </section>
+
+      <section class="view" id="view-catalog" hidden>
+        <div class="view-head">
+          <div class="kicker">LIBRARY / 02</div>
+          <h1>部件库<span>EVERY STL, INDEXED</span></h1>
+          <p>检索全部 723 个 STL。按分组、族与类别筛选，逐件加入打印清单。</p>
+        </div>
+
+        <div class="catalog-toolbar">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+            <input id="cat-search" type="search" placeholder="搜索部件 / 路径 / 变体…" autocomplete="off">
+            <kbd>/</kbd>
+          </div>
+          <div class="filter-row" id="cat-groups"></div>
+          <div class="filter-row filter-row--select">
+            <label>FAMILY
+              <select id="cat-family"></select>
+            </label>
+            <label>CATEGORY
+              <select id="cat-category"></select>
+            </label>
+          </div>
+        </div>
+
+        <div class="catalog-meta">
+          <span id="cat-count">—</span>
+          <span id="cat-sub">按路径排序</span>
+        </div>
+        <div class="catalog-list" id="cat-list"></div>
+        <button class="load-more" id="cat-more" hidden>加载更多 <span>↓</span></button>
+      </section>
+
+      <section class="view" id="view-templates" hidden>
+        <div class="view-head">
+          <div class="kicker">SCENES / 03</div>
+          <h1>场景模板<span>START FROM A REAL LAYOUT</span></h1>
+          <p>13 组来自参考工程的真实组合。套用后会生成对应打印清单，并应用三色配色。</p>
+        </div>
+        <div class="template-grid" id="template-grid"></div>
+      </section>
+
+      <section class="view" id="view-guide" hidden>
+        <div class="view-head">
+          <div class="kicker">GUIDE / 04</div>
+          <h1>装配指南<span>STEP BY STEP</span></h1>
+          <p>分步组装、安装改装与小零件图鉴，可跳转对应手册页。</p>
+        </div>
+        <div id="guide-root"></div>
+      </section>
+    </main>
+
+    <aside class="bom" id="bom" aria-label="打印清单">
+      <header class="bom-head">
+        <div>
+          <div class="bom-kicker">PACKING LIST</div>
+          <div class="bom-title">打印清单</div>
+        </div>
+        <div class="bom-count"><b id="bom-count">0</b><span>ITEMS</span></div>
+        <button class="bom-close" id="bom-close" aria-label="关闭清单">×</button>
+      </header>
+
+      <section class="bom-import" aria-label="本地 STL 库">
+        <div class="bom-import-text">
+          <b>本地 STL 库 <em>LOCAL LIBRARY</em></b>
+          <span id="stl-import-status">未导入 · 下载与预览需要本地 STL</span>
+        </div>
+        <button type="button" id="btn-import-stl">导入 STL 文件夹</button>
+        <input type="file" id="stl-import" webkitdirectory multiple hidden>
+      </section>
+
+      <section class="bom-controls" aria-label="方案与批次进度">
+        <div class="scheme-field">
+          <input id="scheme-name" type="text" list="scheme-names" maxlength="40" placeholder="方案名称 / SCHEME" autocomplete="off">
+          <datalist id="scheme-names"></datalist>
+          <div class="scheme-actions">
+            <button type="button" id="btn-scheme-save">保存</button>
+            <button type="button" id="btn-scheme-load">读取</button>
+            <button type="button" id="btn-scheme-delete">删除</button>
+          </div>
+        </div>
+        <div class="batch-row">
+          <label for="batch-status">批次状态 <em>BATCH</em></label>
+          <select id="batch-status">
+            <option value="pending">待打印</option>
+            <option value="printed">已打印</option>
+            <option value="assembled">已组装</option>
+          </select>
+          <span class="batch-pct" id="batch-pct">0%</span>
+        </div>
+        <div class="bom-progress" role="progressbar" aria-label="完成进度"><i id="progress-fill"></i></div>
+        <div class="progress-note" id="progress-note">0 / 0 已完成</div>
+      </section>
+
+      <div class="bom-list" id="bom-list"></div>
+
+      <footer class="bom-foot">
+        <div class="bom-totals">
+          <div><span>文件</span><b id="bom-files">0</b></div>
+          <div><span>件数</span><b id="bom-qty">0</b></div>
+          <div><span>体积</span><b id="bom-size">0 MB</b></div>
+        </div>
+        <div class="bom-actions">
+          <button class="btn-download" id="btn-download">
+            <span>打包下载 STL</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>
+          </button>
+          <div class="bom-subactions">
+            <button id="btn-copy">复制路径</button>
+            <button id="btn-csv">导出 CSV</button>
+            <button id="btn-clear">清空</button>
+          </div>
+        </div>
+        <p class="bom-note">打包为 ZIP 下载，每种 1 份；打印数量以清单中的件数为准。</p>
+      </footer>
+    </aside>
+
+    <div class="scrim" id="scrim"></div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="data/vault-manifest.js"></script>
+  <script src="data/vault-orientations.js"></script>
+  <script src="data/palettes.js"></script>
+  <script src="data/scene-templates.js"></script>
+  <script src="data/vault-3d.js"></script>
+  <script src="local-files.js"></script>
+  <script src="assembly.js"></script>
+  <script src="data/guide-content.js"></script>
+  <script src="guide.js"></script>
+  <script src="app.js"></script>
+  <script src="preview.js"></script>
+  <script src="manuals.js"></script>
+</body>
+</html>
