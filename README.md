@@ -72,7 +72,7 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone <你的仓库地址> VAULT-USSA
+git clone https://github.com/windmakeppcool/VAULT-USSA.git
 cd VAULT-USSA
 ```
 
@@ -160,7 +160,7 @@ http://localhost:8080/configurator/
 ## 部署到 GitHub Pages
 
 1. 推送到 GitHub 后，进入仓库 **Settings → Pages**。
-2. Source 选择 `Deploy from a branch`，分支选 `main`，目录选 `/ (root)`。
+2. Source 选择 `Deploy from a branch`，分支选 `master`（本仓库默认分支），目录选 `/ (root)`。
 3. 访问 `https://<用户名>.github.io/<仓库名>/configurator/`。
 
 由于仓库不含 STL，线上页面首次打开时组合预览与下载都不可用，需要先按「方式 B」导入本地 STL 文件夹。若静态资源被 Jekyll 处理导致异常，可在仓库根目录添加空的 `.nojekyll` 文件。
