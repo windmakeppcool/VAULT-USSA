@@ -109,12 +109,9 @@ export function layout(entries: LayoutInput[]): Placed[] | null {
   })
 
   boxList.forEach((entry, i) => {
-    // 盒体本身作为主体时放在原点；其余盒体（模块的抽屉）位于主体前方。
-    // 旧 assembly.js 对所有盒体一律前移，与测试约定不符，此处按测试约定处理。
-    const isBody = entry === body
     push(entry, [
-      isBody ? 0 : centered(i, boxList.length) * (entry.size[0] + gap),
-      isBody ? 0 : -bodyD * 0.8 - gap * 0.45,
+      centered(i, boxList.length) * (entry.size[0] + gap),
+      -bodyD * 0.8 - gap * 0.45,
       entry.size[2] / 2,
     ])
   })

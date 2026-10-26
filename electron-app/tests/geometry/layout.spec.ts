@@ -12,11 +12,19 @@ describe('堆叠布局', () => {
     expect(layout([])).toBeNull()
   })
 
-  it('单个盒体放在原点上方的半高处', () => {
+  it('单个盒体放在主体前方（旧实现：抽屉前移）', () => {
     const placed = layout([part('box', [100, 80, 40])])!
     expect(placed[0].center[0]).toBeCloseTo(0, 6)
-    expect(placed[0].center[1]).toBeCloseTo(0, 6)
+    // 旧实现：y = -(80 * 0.8 + 18 * 0.45) = -72.1
+    expect(placed[0].center[1]).toBeCloseTo(-(80 * 0.8 + LAYOUT_GAP * 0.45), 6)
     expect(placed[0].center[2]).toBeCloseTo(20, 6)
+  })
+
+  it('抽屉场景中盒体与模块不重叠', () => {
+    const placed = layout([part('box', [100, 80, 40]), part('module', [100, 80, 40])])!
+    const box = placed.find((p) => p.entry.part.category === 'box')!
+    const mod = placed.find((p) => p.entry.part.category === 'module')!
+    expect(box.center[1]).not.toBeCloseTo(mod.center[1], 1)
   })
 
   it('顶盖位于盒体上方，间距等于 LAYOUT_GAP', () => {
