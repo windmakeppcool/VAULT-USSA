@@ -142,6 +142,12 @@ async function runBuild(list: { path: string; category: string }[]): Promise<voi
     // 组件已发起更新的构建，旧结果只清理不展示
     if (current !== requestId || result.stale) return
 
+    // 场景已重建：材质随 materialCache 重建后 emissive 归零，
+    // 选中 / 悬停状态必须同步复位，否则会出现「状态说选中但画面无高亮」的脱节
+    selected.value = null
+    hovered.value = null
+    assembly.setHighlight(null)
+
     explodeValue.value = 0
     // 线框占位件在画面里同样可见，计数要与实际渲染结果一致
     stats.value = `${result.partCount + result.placeholders} 件 · ${(result.triangles / 1000).toFixed(0)}K 面`
@@ -177,15 +183,37 @@ function onExplode(event: Event): void {
   assembly.setExplode(value)
 }
 
+/** 指针事件只有直接落在画布上才参与拾取，避免 dock / hud 上的点击与悬停穿透到部件 */
+function isCanvasTarget(event: PointerEvent): boolean {
+  const target = event.target as HTMLElement | null
+  return !!target && target.tagName === 'CANVAS'
+}
+
+/**
+ * 按下时指针是否落在画布上。
+ * 拖动后指针捕获可能让 pointerup 的 target 变成容器，因此抬起判定不能看 up 时的 target。
+ */
+let downOnCanvas = false
+
 /** 记录左键按下位置，抬起时位移很小才算点击，避免转动视角时误触 */
 function onPointerDown(event: PointerEvent): void {
-  if (event.button === 0) downAt = { x: event.clientX, y: event.clientY }
+  downOnCanvas = isCanvasTarget(event)
+  if (!downOnCanvas || event.button !== 0) {
+    downAt = null
+    return
+  }
+  downAt = { x: event.clientX, y: event.clientY }
 }
 
 function onPointerUp(event: PointerEvent): void {
-  if (!downAt) return
+  if (!downOnCanvas || !downAt) {
+    downAt = null
+    downOnCanvas = false
+    return
+  }
   const moved = Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y)
   downAt = null
+  downOnCanvas = false
   if (moved > 4) return
 
   const hit = assembly.pick(event.clientX, event.clientY)
@@ -203,6 +231,8 @@ function onPointerUp(event: PointerEvent): void {
 
 /** 悬停预览高亮；染色模式下不做悬停，避免与上色反馈混淆 */
 function onPointerMove(event: PointerEvent): void {
+  // 悬停在 dock 等控件上时不再对底层部件 raycast
+  if (!isCanvasTarget(event)) return
   if (colorStore.dyeMode) return
   // 拖动旋转视角时不做拾取：既避免与 OrbitControls 抢事件，也省掉每帧 raycast
   if (event.buttons !== 0) return

@@ -14,6 +14,7 @@
     <BomDrawer v-model:open="bomOpen" />
     <SinglePreview
       v-if="previewTarget"
+      :key="previewTarget.path"
       :path="previewTarget.path"
       :name="previewTarget.name"
       :category="previewTarget.category"
