@@ -1,0 +1,21 @@
+:root {
+  --paper: #e9e4d6;
+  --paper-hi: #f4efe2;
+  --paper-dim: #dcd5c3;
+  --ink: #14140f;
+  --muted: #6f6a5a;
+  --line: #c3bba8;
+  --line-soft: rgba(20, 20, 15, 0.1);
+  --accent: #e1461c;
+  --stage: #131310;
+
+  --display: 'Barlow Condensed', 'Arial Narrow', Impact, sans-serif;
+  --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  --body: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --chrome-h: 78px;
+  --gutter: 20px;
+  --console-w: 364px;
+  --bom-w: 384px;
+}
