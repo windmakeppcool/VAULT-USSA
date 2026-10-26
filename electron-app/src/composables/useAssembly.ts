@@ -11,12 +11,13 @@ import {
   MeshStandardMaterial,
   Vector3,
 } from 'three'
-import type { PerspectiveCamera, Material } from 'three'
+import type { PerspectiveCamera } from 'three'
 import type { ThreeStage } from './useThreeStage'
 import { useStlLoader, type LoadedPart } from './useStlLoader'
 import { layout, type LayoutInput, type Placed } from '@/lib/geometry/layout'
 import { dequantize, type Quat } from '@/lib/geometry/orientation'
 import type { Vec3 } from '@/lib/geometry/vector'
+import { VAULT_DATA } from '@/data/manifest'
 
 export const MAX_SCENE_TRIANGLES = 5_000_000
 export const MAX_SCENE_PARTS = 80
@@ -44,6 +45,17 @@ const PLACEHOLDER_SIZE: Vec3 = [50, 50, 50]
 
 /** 布局是 Z 轴朝上，three.js 场景是 Y 轴朝上，与旧实现一样旋转根节点 */
 const LAYOUT_TO_SCENE = -Math.PI / 2
+
+/**
+ * 拆分件标记：清单的 k 字段标识 Part 1 / Part 2。
+ * 装配视图只传入 path 与 category，所以按路径在模块顶层建一次映射，
+ * 让 layout() 的「拆分件取代同类兄弟件」分支能正确触发。
+ */
+export const SPLIT_BY_PATH = new Map(
+  VAULT_DATA.files
+    .filter((f) => f.k !== null)
+    .map((f) => [f.p, Number(f.k)] as const),
+)
 
 export interface AssemblyInput {
   path: string
@@ -73,31 +85,29 @@ const EMPTY_RESULT: AssemblyResult = {
   placeholders: 0,
 }
 
-/** 把量化网格还原成真实坐标的 three 几何体，并重算法线保证光照正确 */
-function geometryFromQuantized(part: LoadedPart): BufferGeometry {
+/**
+ * 把量化网格还原成真实坐标的 three 几何体，并重算法线保证光照正确。
+ * 顶点按包围盒中心归零：布局给出的 center 是包围盒中心，
+ * 若保留 STL 原始原点偏移，落点会变成 R·p + T 而不是旧实现的 R·(p − c) + T。
+ */
+export function geometryFromQuantized(part: LoadedPart): BufferGeometry {
   const { positions, minimum, maximum } = part.quantized
   const count = positions.length / 3
+  const cx = (minimum[0] + maximum[0]) / 2
+  const cy = (minimum[1] + maximum[1]) / 2
+  const cz = (minimum[2] + maximum[2]) / 2
   const floats = new Float32Array(count * 3)
   const p: Vec3 = [0, 0, 0]
   for (let i = 0; i < count; i++) {
     dequantize({ positions, minimum, maximum }, i, p)
-    floats[i * 3] = p[0]
-    floats[i * 3 + 1] = p[1]
-    floats[i * 3 + 2] = p[2]
+    floats[i * 3] = p[0] - cx
+    floats[i * 3 + 1] = p[1] - cy
+    floats[i * 3 + 2] = p[2] - cz
   }
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new BufferAttribute(floats, 3))
   geometry.computeVertexNormals()
   return geometry
-}
-
-function disposeMaterial(material: Material | Material[] | undefined): void {
-  if (!material) return
-  if (Array.isArray(material)) {
-    for (const item of material) item.dispose()
-  } else {
-    material.dispose()
-  }
 }
 
 /**
@@ -137,11 +147,15 @@ export function useAssembly() {
   function disposeRoot(): void {
     if (!root || !stage) return
     stage.scene.remove(root)
+    // 材质按类别共享，先收集去重再统一释放，避免同一材质被 dispose 多次
+    const materials = new Set<MeshStandardMaterial | MeshBasicMaterial>()
     root.traverse((object) => {
       const mesh = object as Mesh
       mesh.geometry?.dispose()
-      disposeMaterial(mesh.material as Material | Material[] | undefined)
+      const material = mesh.material as MeshStandardMaterial | MeshBasicMaterial | undefined
+      if (material) materials.add(material)
     })
+    materials.forEach((material) => material.dispose())
     root = null
     lastPlaced = []
     explodeSpan = 0
@@ -212,7 +226,7 @@ export function useAssembly() {
           key: part.path,
           category: categoryOf(part),
           name: part.path.split('/').pop() ?? part.path,
-          split: 0,
+          split: SPLIT_BY_PATH.get(part.path) ?? 0,
         },
         size: part.canonical.size,
         quat: part.canonical.quat,
@@ -222,7 +236,7 @@ export function useAssembly() {
           key: item.path,
           category: item.category,
           name: item.path.split('/').pop() ?? item.path,
-          split: 0,
+          split: SPLIT_BY_PATH.get(item.path) ?? 0,
         },
         size: PLACEHOLDER_SIZE,
         quat: [0, 0, 0, 1] as Quat,
@@ -300,7 +314,18 @@ export function useAssembly() {
   /** 根据包围盒调整相机，near / far 必须随模型尺寸缩放，否则大组合会被裁掉 */
   function frameAll(group: Group): void {
     if (!stage) return
+    // 取景必须基于未展开的基础位置：临时把爆炸归零再测量，
+    // 否则「重置」会用已放大的包围盒重算，反复重置 + 展开会让相机越退越远。
+    const previous = explode
+    if (previous > 0) {
+      explode = 0
+      applyExplode()
+    }
     const box = new Box3().setFromObject(group)
+    if (previous > 0) {
+      explode = previous
+      applyExplode()
+    }
     if (box.isEmpty()) return
     const size = box.getSize(new Vector3())
     const center = box.getCenter(new Vector3())

@@ -105,13 +105,16 @@ async function runBuild(list: { path: string; category: string }[]): Promise<voi
     if (current !== requestId || result.stale) return
 
     explodeValue.value = 0
-    stats.value = `${result.partCount} 件 · ${(result.triangles / 1000).toFixed(0)}K 面`
+    // 线框占位件在画面里同样可见，计数要与实际渲染结果一致
+    stats.value = `${result.partCount + result.placeholders} 件 · ${(result.triangles / 1000).toFixed(0)}K 面`
 
     const notes: string[] = []
     if (result.failed) {
+      // 占位数会被 MAX_SCENE_PARTS 截断，提示只按真正画出来的线框计数
+      const renderedFailed = Math.min(result.failed, result.placeholders)
       notes.push(
-        result.placeholders
-          ? `${result.failed} 件读取失败（红色线框为缺失占位）`
+        renderedFailed > 0
+          ? `${result.failed} 件读取失败（其中 ${renderedFailed} 件以红色线框占位）`
           : `${result.failed} 件读取失败`,
       )
     }
@@ -123,6 +126,8 @@ async function runBuild(list: { path: string; category: string }[]): Promise<voi
     emit('loaded', result.partCount)
   } catch (error) {
     if (current !== requestId) return
+    // useAssembly 失败时内部已把 explode 归零，滑块显示同步复位
+    explodeValue.value = 0
     status.value = `组合失败：${(error as Error).message}`
     ready.value = false
   }
