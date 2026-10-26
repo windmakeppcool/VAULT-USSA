@@ -4,6 +4,7 @@ import path from 'node:path'
 import { registerAppSchemePrivileges, registerAppProtocol } from './protocol'
 import { getLibraryState, selectLibraryRoot, readConfig, writeConfig } from './stl-library'
 import { exportZip, cancelExport } from './zip-export'
+import { openManual } from './manuals'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEV_URL = process.env.VITE_DEV_SERVER_URL as string | undefined
@@ -58,6 +59,7 @@ app.whenReady().then(() => {
     return exportZip(win, relPaths as string[], jobId)
   })
   ipcMain.on('export:cancel', (_event, jobId: string) => cancelExport(jobId))
+  ipcMain.handle('manual:open', (_event, name: string) => openManual(name))
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

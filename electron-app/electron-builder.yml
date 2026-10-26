@@ -7,6 +7,9 @@ files:
   - dist/**/*
   - dist-electron/**/*
 asar: true
+extraResources:
+  - from: resources/pdf
+    to: pdf
 win:
   target:
     - target: portable
