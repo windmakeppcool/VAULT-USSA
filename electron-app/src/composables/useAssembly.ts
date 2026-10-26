@@ -18,6 +18,7 @@ import { layout, type LayoutInput, type Placed } from '@/lib/geometry/layout'
 import { dequantize, type Quat } from '@/lib/geometry/orientation'
 import type { Vec3 } from '@/lib/geometry/vector'
 import { VAULT_DATA } from '@/data/manifest'
+import { colorKeyFor } from '@/lib/color-key'
 
 export const MAX_SCENE_TRIANGLES = 5_000_000
 export const MAX_SCENE_PARTS = 80
@@ -56,6 +57,30 @@ export const SPLIT_BY_PATH = new Map(
     .filter((f) => f.k !== null)
     .map((f) => [f.p, Number(f.k)] as const),
 )
+
+/**
+ * 路径 → manifest 条目（规范化显示名与类别）。
+ * 装配视图只传 path 与 category，配色键需要 manifest 的显示名才能命中名称规则，
+ * 因此在模块顶层建一次映射，避免每次构建重复遍历。
+ */
+export const PATH_TO_ENTRY: ReadonlyMap<string, { name: string; category: string }> = new Map(
+  VAULT_DATA.files.map((f) => [f.p, { name: f.n, category: f.c }] as const),
+)
+
+/** 部件的规范化显示名：优先取 manifest 的 n，缺失时退回文件名 */
+function displayNameOf(path: string): string {
+  return PATH_TO_ENTRY.get(path)?.name ?? path.split('/').pop() ?? path
+}
+
+/** 用 manifest 条目计算配色键；清单缺失时退回路径与传入类别 */
+function colorKeyOf(path: string, category: string): string {
+  const entry = PATH_TO_ENTRY.get(path)
+  return colorKeyFor({
+    name: entry?.name ?? displayNameOf(path),
+    path,
+    category: entry?.category ?? category,
+  })
+}
 
 export interface AssemblyInput {
   path: string
@@ -133,7 +158,7 @@ export function useAssembly() {
   let stage: ThreeStage | null = null
   let root: Group | null = null
   let lastPlaced: PlacementRecord[] = []
-  /** 按类别共享的材质缓存；提到闭包层，供配色变更时实时回流 */
+  /** 按配色键共享的材质缓存；提到闭包层，供配色变更时实时回流 */
   const materialCache = new Map<string, MeshStandardMaterial>()
   let explode = 0
   let explodeSpan = 0
@@ -149,7 +174,7 @@ export function useAssembly() {
   function disposeRoot(): void {
     if (!root || !stage) return
     stage.scene.remove(root)
-    // 材质按类别共享，先收集去重再统一释放，避免同一材质被 dispose 多次
+    // 材质按配色键共享，先收集去重再统一释放，避免同一材质被 dispose 多次
     const materials = new Set<MeshStandardMaterial | MeshBasicMaterial>()
     root.traverse((object) => {
       const mesh = object as Mesh
@@ -168,7 +193,7 @@ export function useAssembly() {
 
   async function build(
     list: AssemblyInput[],
-    colorFor: (category: string) => string,
+    colorFor: (colorKey: string) => string,
   ): Promise<AssemblyResult> {
     if (!stage) throw new Error('渲染器未就绪')
     const current = ++generation
@@ -231,7 +256,7 @@ export function useAssembly() {
         part: {
           key: part.path,
           category: categoryOf(part),
-          name: part.path.split('/').pop() ?? part.path,
+          name: displayNameOf(part.path),
           split: SPLIT_BY_PATH.get(part.path) ?? 0,
         },
         size: part.canonical.size,
@@ -241,7 +266,7 @@ export function useAssembly() {
         part: {
           key: item.path,
           category: item.category,
-          name: item.path.split('/').pop() ?? item.path,
+          name: displayNameOf(item.path),
           split: SPLIT_BY_PATH.get(item.path) ?? 0,
         },
         size: PLACEHOLDER_SIZE,
@@ -273,16 +298,18 @@ export function useAssembly() {
       const part = keptByPath.get(key)
       if (part) {
         const geometry = geometryFromQuantized(part)
-        let material = materialCache.get(category)
+        // 材质按配色键共享：同键的部件复用同一材质，改色一次即可全部回流
+        const colorKey = colorKeyOf(key, category)
+        let material = materialCache.get(colorKey)
         if (!material) {
           material = new MeshStandardMaterial({
-            color: new Color(colorFor(category)),
+            color: new Color(colorFor(colorKey)),
             roughness: 0.62,
             metalness: 0.06,
             side: DoubleSide,
             flatShading: false,
           })
-          materialCache.set(category, material)
+          materialCache.set(colorKey, material)
         }
         mesh = new Mesh(geometry, material)
         partCount++
@@ -409,12 +436,12 @@ export function useAssembly() {
   }
 
   /**
-   * 配色变更时实时更新已建场景：材质按类别共享，
-   * 每个类别只需改一次颜色，再请求重绘。
+   * 配色变更时实时更新已建场景：材质按配色键共享，
+   * 每个键只需改一次颜色，再请求重绘。
    */
-  function recolor(colorFor: (category: string) => string): void {
-    for (const [category, material] of materialCache) {
-      material.color.set(colorFor(category))
+  function recolor(colorFor: (colorKey: string) => string): void {
+    for (const [colorKey, material] of materialCache) {
+      material.color.set(colorFor(colorKey))
     }
     stage?.invalidate()
   }

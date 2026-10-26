@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { VAULT_PALETTES } from '@/data/palettes'
+import { colorKeyFor, type ColorKeySource } from '@/lib/color-key'
 
 export const useColorStore = defineStore('color', () => {
   const activePreset = ref(VAULT_PALETTES.defaultPreset)
@@ -22,8 +23,13 @@ export const useColorStore = defineStore('color', () => {
     activePreset.value = 'custom'
   }
 
-  function colorFor(partKey: string): string {
-    return colors.value[partKey] ?? '#ff6b00'
+  /**
+   * 取色：既可传调色板键（配色工作台），也可传 manifest 部件条目
+   * （由 colorKeyFor 换算成调色板键）。缺色时退回强调色，再退回工程橙。
+   */
+  function colorFor(keyOrEntry: string | ColorKeySource): string {
+    const key = typeof keyOrEntry === 'string' ? keyOrEntry : colorKeyFor(keyOrEntry)
+    return colors.value[key] ?? colors.value.accent ?? '#ff6b00'
   }
 
   const swatches = computed(() => VAULT_PALETTES.swatches)

@@ -80,11 +80,11 @@ watch(
   { immediate: true },
 )
 
-// 配色改动实时回流到已建场景：材质按类别共享，直接改色即可
+// 配色改动实时回流到已建场景：材质按配色键共享，直接改色即可
 watch(
   () => colorStore.colors,
   () => {
-    assembly.recolor((category) => colorStore.colorFor(category))
+    assembly.recolor((colorKey) => colorStore.colorFor(colorKey))
   },
   { deep: true },
 )
@@ -109,7 +109,7 @@ async function runBuild(list: { path: string; category: string }[]): Promise<voi
   ready.value = false
   status.value = '正在读取组合…'
   try {
-    const result = await assembly.build(list, (category) => colorStore.colorFor(category))
+    const result = await assembly.build(list, (colorKey) => colorStore.colorFor(colorKey))
     // 组件已发起更新的构建，旧结果只清理不展示
     if (current !== requestId || result.stale) return
 
