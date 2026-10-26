@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { LibraryState } from './types/api'
+import type { ExportProgress, LibraryState } from './types/api'
 
 declare module '*.vue' {
   import type { DefineComponent } from 'vue'
@@ -12,6 +12,9 @@ declare global {
   interface VaultApi {
     getLibraryState(): Promise<LibraryState>
     selectLibraryRoot(): Promise<LibraryState>
+    exportZip(relPaths: string[], jobId: string): Promise<{ canceled: boolean; savedTo?: string }>
+    cancelExport(jobId: string): void
+    onExportProgress(handler: (p: ExportProgress) => void): () => void
   }
 
   interface Window {

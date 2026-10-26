@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { registerAppSchemePrivileges, registerAppProtocol } from './protocol'
 import { getLibraryState, selectLibraryRoot, readConfig, writeConfig } from './stl-library'
+import { exportZip, cancelExport } from './zip-export'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEV_URL = process.env.VITE_DEV_SERVER_URL as string | undefined
@@ -50,6 +51,12 @@ app.whenReady().then(() => {
   registerAppProtocol(UI_ROOT, DEV_URL)
   ipcMain.handle('library:get', () => getLibraryState())
   ipcMain.handle('library:select', () => selectLibraryRoot(mainWindow))
+  ipcMain.handle('export:start', (event, relPaths: string[], jobId: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) throw new Error('窗口已关闭')
+    return exportZip(win, relPaths, jobId)
+  })
+  ipcMain.on('export:cancel', (_event, jobId: string) => cancelExport(jobId))
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
