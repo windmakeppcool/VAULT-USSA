@@ -1,5 +1,5 @@
 import { app, shell } from 'electron'
-import { existsSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import path from 'node:path'
 
 /**
@@ -9,13 +9,22 @@ import path from 'node:path'
  * electron-builder 的 `extraResources` 复制到 `process.resourcesPath/pdf/`。
  */
 export async function openManual(pdfName: string): Promise<void> {
-  // PDF 均位于同一扁平目录，取 basename 避免 `../` 逃逸出资源目录
-  const safeName = path.basename(pdfName)
+  // 只接受纯文件名 + .pdf 扩展名：拒绝目录分隔符、`..` 等路径成分
+  if (!/^[\w .\-()]+\.pdf$/i.test(pdfName)) {
+    throw new Error(`非法的手册文件名：${pdfName}`)
+  }
   const base = app.isPackaged
     ? path.join(process.resourcesPath, 'pdf')
     : path.join(app.getAppPath(), 'resources', 'pdf')
-  const target = path.join(base, safeName)
-  if (!existsSync(target)) throw new Error(`手册文件不存在：${safeName}`)
+  const target = path.join(base, pdfName)
+  let info
+  try {
+    info = statSync(target)
+  } catch {
+    throw new Error(`手册文件不存在：${pdfName}`)
+  }
+  // 同名目录不能交给系统阅读器
+  if (!info.isFile()) throw new Error(`手册路径不是文件：${pdfName}`)
   const error = await shell.openPath(target)
   if (error) throw new Error(error)
 }

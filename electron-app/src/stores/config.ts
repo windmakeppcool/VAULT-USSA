@@ -40,7 +40,7 @@ export const FAMILY_OPTIONS: Record<BuildMode, { value: string; label: string }[
 }
 
 /** 族值到界面标签的映射，用于 sheetCode 等展示位置 */
-const FAMILY_LABELS: Record<string, string> = Object.fromEntries(
+export const FAMILY_LABELS: Record<string, string> = Object.fromEntries(
   Object.values(FAMILY_OPTIONS)
     .flat()
     .map((option) => [option.value, option.label]),
@@ -85,9 +85,10 @@ export const useConfigStore = defineStore('config', () => {
   })
 
   const sheetCode = computed(() => {
-    if (mode.value === 'mod') return 'MOD'
     const label = FAMILY_LABELS[family.value] ?? family.value
-    return `${label} / ${size.value} / ${height.value}`
+    const spec = `${label} / ${size.value} / ${height.value}`
+    // 改装件与其它模式同格式，前缀区分模式，避免只看规格误判
+    return mode.value === 'mod' ? `MOD · ${spec}` : spec
   })
 
   return { mode, family, size, height, matchedParts, sheetCode }

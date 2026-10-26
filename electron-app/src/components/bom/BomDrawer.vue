@@ -7,7 +7,15 @@
           <b>打印清单</b>
         </div>
         <div class="count"><b>{{ bom.fileCount }}</b><span>ITEMS</span></div>
-        <button class="close" aria-label="关闭" @click="emit('update:open', false)">×</button>
+        <button
+          class="close"
+          aria-label="关闭"
+          :disabled="exporting"
+          :title="exporting ? '导出进行中，暂时无法关闭' : undefined"
+          @click="emit('update:open', false)"
+        >
+          ×
+        </button>
       </header>
 
       <section class="library">
@@ -72,8 +80,6 @@ const exportStatus = ref('')
 const jobId = ref('')
 // 当前导出进度订阅的取消函数，切换任务或卸载时统一清理
 let unsubscribe: (() => void) | null = null
-// 进度事件与 IPC 结果可能先后到达，用一个标记避免重复 toast / 状态覆盖
-let settled = false
 
 const librarySummary = computed(() => {
   if (!library.checked) return '检测中…'
@@ -101,57 +107,66 @@ function startExport(): void {
   if (!canExport.value || exporting.value) return
   exporting.value = true
   exportStatus.value = '准备中…'
-  jobId.value = `job-${Date.now()}`
-  settled = false
+  const myJobId = `job-${Date.now()}`
+  jobId.value = myJobId
+  // 终态只处理一次：进度事件、IPC 返回值、异常可能先后到达。
+  // settled 放在本次调用的闭包里，旧任务迟到的回调不会污染新任务。
+  let settled = false
+  const finish = (fn: () => void): void => {
+    if (settled) return
+    settled = true
+    // 旧任务已被新任务取代时，迟到回调只结束自身，不碰当前任务的状态与订阅
+    if (jobId.value !== myJobId) return
+    detachProgress()
+    fn()
+  }
 
   // 开始新任务前先解绑旧订阅，避免重复监听
   detachProgress()
   unsubscribe = window.vaultApi.onExportProgress((progress: ExportProgress) => {
     // 主进程可能同时推送其他任务的事件，只处理当前 jobId
-    if (progress.jobId !== jobId.value) return
+    if (progress.jobId !== myJobId) return
     if (progress.state === 'running') {
       exportStatus.value = `${progress.done} / ${progress.total} · ${progress.currentFile}`
       return
     }
     // 终态：只处理一次，IPC 抛错时 catch 里不再重复提示
-    if (settled) return
-    settled = true
-    exporting.value = false
-    detachProgress()
-    if (progress.state === 'done') {
-      exportStatus.value = ''
-      toast('打包完成')
-    } else if (progress.state === 'canceled') {
-      exportStatus.value = ''
-      toast('已取消导出', 'warn')
-    } else {
-      const reason = progress.error ?? '未知错误'
-      exportStatus.value = `导出失败：${reason}`
-      toast(`导出失败：${reason}`, 'warn')
-    }
+    finish(() => {
+      exporting.value = false
+      if (progress.state === 'done') {
+        exportStatus.value = ''
+        toast('打包完成')
+      } else if (progress.state === 'canceled') {
+        exportStatus.value = ''
+        toast('已取消导出', 'warn')
+      } else {
+        const reason = progress.error ?? '未知错误'
+        exportStatus.value = `导出失败：${reason}`
+        toast(`导出失败：${reason}`, 'warn')
+      }
+    })
   })
 
   window.vaultApi
     .exportZip(
       bom.items.map((i) => i.path),
-      jobId.value,
+      myJobId,
     )
     .then((result) => {
-      if (result.canceled && !settled) {
-        settled = true
-        exporting.value = false
-        exportStatus.value = ''
-        detachProgress()
+      if (result.canceled) {
+        finish(() => {
+          exporting.value = false
+          exportStatus.value = ''
+        })
       }
     })
     .catch((error: Error) => {
       // 终态已由进度事件处理过，避免重复 toast
-      if (settled) return
-      settled = true
-      exporting.value = false
-      detachProgress()
-      exportStatus.value = `导出失败：${error.message}`
-      toast(`导出失败：${error.message}`, 'warn')
+      finish(() => {
+        exporting.value = false
+        exportStatus.value = `导出失败：${error.message}`
+        toast(`导出失败：${error.message}`, 'warn')
+      })
     })
 }
 
@@ -233,6 +248,14 @@ onBeforeUnmount(() => {
 .close:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+.close:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.close:disabled:hover {
+  border-color: var(--line);
+  color: inherit;
 }
 .library {
   display: flex;

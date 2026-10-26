@@ -6,7 +6,7 @@
           <span class="name" :title="rowFor(virtual.index)?.p ?? ''">
             {{ rowFor(virtual.index)?.n ?? '' }}
           </span>
-          <span class="family">{{ rowFor(virtual.index)?.f ?? '—' }}</span>
+          <span class="family">{{ familyLabel(rowFor(virtual.index)?.f) }}</span>
           <span class="category">{{ rowFor(virtual.index)?.c ?? '' }}</span>
           <span class="support">{{ rowFor(virtual.index)?.u ? '需支撑' : '' }}</span>
           <button type="button" @click="addEntry(rowFor(virtual.index))">加入</button>
@@ -21,6 +21,7 @@
 import { computed, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useBomStore } from '@/stores/bom'
+import { FAMILY_LABELS } from '@/stores/config'
 import { toast } from '@/composables/useToast'
 import type { ManifestEntry } from '@/data/types'
 
@@ -55,6 +56,11 @@ watch(
 /** 虚拟行索引在列表切换瞬间可能短暂越界，读取时统一判空 */
 function rowFor(index: number): ManifestEntry | undefined {
   return props.entries[index]
+}
+
+/** manifest 存的是 ASCII 族值（L2 / XL2），界面统一显示上标 */
+function familyLabel(f: string | null | undefined): string {
+  return f ? FAMILY_LABELS[f] ?? f : '—'
 }
 
 function addEntry(entry: ManifestEntry | undefined): void {
