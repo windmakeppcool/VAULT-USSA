@@ -107,4 +107,23 @@ describe('打印清单 store', () => {
     expect(bom.items).toHaveLength(1)
     expect(bom.items[0]).toMatchObject({ path: '01. DRAWERS/x.stl', qty: 2, done: true })
   })
+
+  it('迁移只发生一次：清空清单后重启不会重新迁入旧数据', () => {
+    localStorage.clear()
+    localStorage.setItem('vault-ussat-config-v1', JSON.stringify({
+      bom: [{ p: '01. DRAWERS/x.stl', q: 2, g: '抽屉', done: false }],
+    }))
+    setActivePinia(createPinia())
+    const first = useBomStore()
+    expect(first.items).toHaveLength(1)
+
+    // 用户清空清单
+    first.clear()
+    expect(first.items).toHaveLength(0)
+
+    // 模拟重启：新 Pinia 实例重新读存储
+    setActivePinia(createPinia())
+    const second = useBomStore()
+    expect(second.items).toHaveLength(0)
+  })
 })

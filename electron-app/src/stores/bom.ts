@@ -14,6 +14,7 @@ export interface BomItem {
 
 const STORAGE_KEY = 'vault-ussa-bom-v2'
 const LEGACY_KEY = 'vault-ussat-config-v1'
+const MIGRATED_KEY = 'vault-ussa-bom-migrated'
 const clampQty = (value: number) => {
   const n = Math.floor(Number(value) || 1)
   return Number.isFinite(n) ? Math.max(1, n) : 1
@@ -49,9 +50,19 @@ export const useBomStore = defineStore('bom', () => {
   }
 
   function load(): void {
+    // 迁移只做一次：已迁移过就不再自动注入旧数据
+    const migrated = (() => {
+      try {
+        return localStorage.getItem(MIGRATED_KEY) === '1'
+      } catch {
+        return false
+      }
+    })()
+
+    let loadedNew = false
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')
-      if (parsed && Array.isArray(parsed.items)) {
+      if (parsed && Array.isArray(parsed.items) && parsed.items.length) {
         items.value = parsed.items
           .filter((i: BomItem) => typeof i?.path === 'string')
           .map((i: BomItem) => ({
@@ -62,13 +73,25 @@ export const useBomStore = defineStore('bom', () => {
             batchStatus: i.batchStatus ?? 'pending',
             colorKey: i.colorKey ?? '',
           }))
+        loadedNew = true
       }
     } catch {
       items.value = []
     }
-    // 新 key 不存在、解析失败或没有有效条目时，尝试迁移旧版清单数据
-    if (items.value.length === 0) {
-      items.value = loadLegacy()
+    // 新 key 无有效条目且尚未迁移时，尝试迁移旧版清单数据
+    if (!loadedNew && !migrated) {
+      const legacy = loadLegacy()
+      if (legacy.length) {
+        items.value = legacy
+        // 迁移结果立即落到新 key（旧 key 保留，不删除）
+        persist()
+      }
+      // 无论是否读到旧数据都写标记：用户已启动过新版一次，不再自动注入
+      try {
+        localStorage.setItem(MIGRATED_KEY, '1')
+      } catch {
+        // 存储不可用时静默降级
+      }
     }
   }
 
