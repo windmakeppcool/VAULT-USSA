@@ -6,7 +6,8 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   test: {
-    environment: 'node',
+    environment: 'happy-dom',
     include: ['tests/**/*.spec.ts'],
+    setupFiles: ['tests/setup.ts'],
   },
 })
