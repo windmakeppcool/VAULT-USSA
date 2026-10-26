@@ -1,14 +1,24 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { registerAppSchemePrivileges, registerAppProtocol } from './protocol'
+import { getLibraryState, selectLibraryRoot, readConfig, writeConfig } from './stl-library'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEV_URL = process.env.VITE_DEV_SERVER_URL as string | undefined
+const UI_ROOT = path.join(dirname, '../dist')
+
+registerAppSchemePrivileges()
+
+let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
+  const bounds = readConfig().windowBounds
   const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: bounds?.width ?? 1440,
+    height: bounds?.height ?? 900,
+    x: bounds?.x,
+    y: bounds?.y,
     minWidth: 1100,
     minHeight: 720,
     backgroundColor: '#131310',
@@ -19,15 +29,27 @@ function createWindow(): void {
       sandbox: true,
     },
   })
+  mainWindow = win
+
+  win.on('close', () => {
+    const [width, height] = win.getSize()
+    writeConfig({ windowBounds: { width, height } })
+  })
+  win.on('closed', () => {
+    mainWindow = null
+  })
 
   if (DEV_URL) {
     void win.loadURL(DEV_URL)
   } else {
-    void win.loadFile(path.join(dirname, '../dist/index.html'))
+    void win.loadURL('app://ui/index.html')
   }
 }
 
 app.whenReady().then(() => {
+  registerAppProtocol(UI_ROOT, DEV_URL)
+  ipcMain.handle('library:get', () => getLibraryState())
+  ipcMain.handle('library:select', () => selectLibraryRoot(mainWindow))
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

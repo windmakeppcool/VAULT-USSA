@@ -1,3 +1,10 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 
-contextBridge.exposeInMainWorld('vaultApi', {})
+const api = {
+  getLibraryState: () => ipcRenderer.invoke('library:get'),
+  selectLibraryRoot: () => ipcRenderer.invoke('library:select'),
+}
+
+contextBridge.exposeInMainWorld('vaultApi', api)
+
+export type VaultApi = typeof api
