@@ -33,13 +33,17 @@ export function useThreeStage(hostRef: Ref<HTMLElement | null>, background = 0x1
   let controls!: OrbitControls
   let raf = 0
   let dirty = true
+  let disposed = false
   let resizeObserver: ResizeObserver | null = null
+  let handleContextLost: ((event: Event) => void) | null = null
+  let handleContextRestored: (() => void) | null = null
 
   const invalidate = () => {
     dirty = true
   }
 
   function render(): void {
+    if (disposed) return
     raf = requestAnimationFrame(render)
     if (!dirty) return
     dirty = false
@@ -47,9 +51,28 @@ export function useThreeStage(hostRef: Ref<HTMLElement | null>, background = 0x1
     renderer.render(scene, camera)
   }
 
+  /** 统一清理：onBeforeUnmount 与返回的 dispose() 共用，且可重复调用 */
+  function cleanup(): void {
+    if (disposed) return
+    disposed = true
+    cancelAnimationFrame(raf)
+    raf = 0
+    resizeObserver?.disconnect()
+    resizeObserver = null
+    if (renderer) {
+      if (handleContextLost) renderer.domElement.removeEventListener('webglcontextlost', handleContextLost)
+      if (handleContextRestored) renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored)
+      renderer.dispose()
+      renderer.domElement.remove()
+    }
+    handleContextLost = null
+    handleContextRestored = null
+    controls?.dispose()
+  }
+
   onMounted(() => {
     const host = hostRef.value
-    if (!host) return
+    if (!host || disposed) return
 
     renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -89,20 +112,25 @@ export function useThreeStage(hostRef: Ref<HTMLElement | null>, background = 0x1
     resizeObserver = new ResizeObserver(resize)
     resizeObserver.observe(host)
 
-    renderer.domElement.addEventListener('webglcontextlost', (event) => {
+    handleContextLost = (event: Event) => {
       event.preventDefault()
       cancelAnimationFrame(raf)
-    })
+      raf = 0
+    }
+    handleContextRestored = () => {
+      // context 恢复后 three 会重建内部资源，重新启动按需渲染循环
+      if (disposed) return
+      dirty = true
+      if (!raf) render()
+    }
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost)
+    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored)
 
     render()
   })
 
   onBeforeUnmount(() => {
-    cancelAnimationFrame(raf)
-    resizeObserver?.disconnect()
-    controls?.dispose()
-    renderer?.dispose()
-    renderer?.domElement.remove()
+    cleanup()
   })
 
   return {
@@ -112,8 +140,7 @@ export function useThreeStage(hostRef: Ref<HTMLElement | null>, background = 0x1
     get controls() { return controls },
     invalidate,
     dispose() {
-      cancelAnimationFrame(raf)
-      renderer?.dispose()
+      cleanup()
     },
   }
 }

@@ -1,8 +1,7 @@
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
-import type { BufferGeometry } from 'three'
 import { stlUrl } from '@/lib/path'
 import { canonicalize, type Canonical, type QuantizedMesh } from '@/lib/geometry/orientation'
 import type { Vec3 } from '@/lib/geometry/vector'
+import { VAULT_DATA } from '@/data/manifest'
 
 export const MAX_PART_BYTES = 72 * 1048576
 export const MAX_CACHE_BYTES = 180 * 1048576
@@ -16,38 +15,87 @@ export interface LoadedPart {
   bytes: number
 }
 
-const loader = new STLLoader()
+/** 清单里的原始文件体积，模块顶层建一次，用于下载前预判 oversized */
+const SIZE_BY_PATH = new Map(VAULT_DATA.files.map((f) => [f.p, f.s]))
+
 const cache = new Map<string, LoadedPart>()
+const pending = new Map<string, Promise<LoadedPart>>()
 let cacheBytes = 0
 
-/** 顶点按 65535 归一化为 Uint16，内存占用减半 */
-function quantize(geometry: BufferGeometry): QuantizedMesh {
-  const attr = geometry.getAttribute('position')
-  const count = attr.count
-  const min: Vec3 = [Infinity, Infinity, Infinity]
-  const max: Vec3 = [-Infinity, -Infinity, -Infinity]
-  for (let i = 0; i < count; i++) {
-    for (let a = 0; a < 3; a++) {
-      const v = attr.getComponent(i, a)
-      if (v < min[a]) min[a] = v
-      if (v > max[a]) max[a] = v
+interface ParseResult {
+  positions: Uint16Array
+  minimum: Vec3
+  maximum: Vec3
+  triangles: number
+}
+
+interface WorkerResponse {
+  id: number
+  ok: boolean
+  positions?: Uint16Array
+  minimum?: Vec3
+  maximum?: Vec3
+  triangles?: number
+  error?: string
+}
+
+let worker: Worker | null = null
+let nextRequestId = 1
+const parseWaiters = new Map<
+  number,
+  { resolve: (v: ParseResult) => void; reject: (e: Error) => void }
+>()
+
+function getWorker(): Worker {
+  if (!worker) {
+    worker = new Worker(new URL('../workers/stl-worker.ts', import.meta.url), { type: 'module' })
+    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      const data = event.data
+      const waiter = parseWaiters.get(data.id)
+      if (!waiter) return
+      parseWaiters.delete(data.id)
+      if (data.ok && data.positions && data.minimum && data.maximum && typeof data.triangles === 'number') {
+        waiter.resolve({
+          positions: data.positions,
+          minimum: data.minimum,
+          maximum: data.maximum,
+          triangles: data.triangles,
+        })
+      } else {
+        waiter.reject(new Error(data.error ?? 'STL 解析失败'))
+      }
+    }
+    worker.onerror = () => {
+      for (const waiter of parseWaiters.values()) waiter.reject(new Error('STL 解析 Worker 异常'))
+      parseWaiters.clear()
     }
   }
-  const span: Vec3 = [max[0] - min[0] || 1, max[1] - min[1] || 1, max[2] - min[2] || 1]
-  const positions = new Uint16Array(count * 3)
-  for (let i = 0; i < count; i++) {
-    for (let a = 0; a < 3; a++) {
-      const v = attr.getComponent(i, a)
-      positions[i * 3 + a] = Math.round(((v - min[a]) / span[a]) * 65535)
+  return worker
+}
+
+/**
+ * 把 buffer 交给 Worker 解析。注意 transfer 列表会转移 buffer 所有权，
+ * 转移后主线程不可再读取同一个 buffer。
+ */
+function parseInWorker(buffer: ArrayBuffer): Promise<ParseResult> {
+  return new Promise((resolve, reject) => {
+    const id = nextRequestId++
+    parseWaiters.set(id, { resolve, reject })
+    try {
+      getWorker().postMessage({ id, buffer }, [buffer])
+    } catch (error) {
+      parseWaiters.delete(id)
+      reject(error instanceof Error ? error : new Error(String(error)))
     }
-  }
-  return { positions, minimum: min, maximum: max }
+  })
 }
 
 function trimCache(): void {
   if (cacheBytes <= MAX_CACHE_BYTES) return
   for (const key of Array.from(cache.keys())) {
     if (cacheBytes <= MAX_CACHE_BYTES) break
+    // 在途条目尚未完成，淘汰它会让并发加载重复计数
+    if (pending.has(key)) continue
     const entry = cache.get(key)
     if (!entry) continue
     cacheBytes -= entry.bytes
@@ -56,22 +104,35 @@ function trimCache(): void {
 }
 
 async function fetchOne(path: string, category: string): Promise<LoadedPart> {
+  // 用清单体积在下载前预判，避免白下载超大文件
+  const declared = SIZE_BY_PATH.get(path)
+  if (declared !== undefined && declared > MAX_PART_BYTES) throw new Error('oversized')
+
   const response = await fetch(stlUrl(path))
   if (!response.ok) {
     throw new Error(response.status === 404 ? `缺少文件：${path}` : `读取失败（${response.status}）：${path}`)
   }
   const buffer = await response.arrayBuffer()
+  // 清单体积可能缺失或不准确，下载后再兜底检查一次
   if (buffer.byteLength > MAX_PART_BYTES) throw new Error('oversized')
 
-  const geometry = loader.parse(buffer)
-  const quantized = quantize(geometry)
-  geometry.dispose()
+  const parsed = await parseInWorker(buffer)
+
+  // 并发竞态下同一路径可能已被另一实例写入，避免重复记账
+  const existing = cache.get(path)
+  if (existing) return existing
+
+  const quantized: QuantizedMesh = {
+    positions: parsed.positions,
+    minimum: parsed.minimum,
+    maximum: parsed.maximum,
+  }
 
   const part: LoadedPart = {
     path,
     quantized,
     canonical: canonicalize(quantized, category, path),
-    triangles: quantized.positions.length / 9,
+    triangles: parsed.triangles,
     bytes: quantized.positions.byteLength,
   }
   cache.set(path, part)
@@ -81,8 +142,6 @@ async function fetchOne(path: string, category: string): Promise<LoadedPart> {
 }
 
 export function useStlLoader() {
-  const pending = new Map<string, Promise<LoadedPart>>()
-
   function load(path: string, category: string): Promise<LoadedPart> {
     const cached = cache.get(path)
     if (cached) return Promise.resolve(cached)
@@ -117,7 +176,12 @@ export function useStlLoader() {
             .finally(() => {
               active--
               done++
-              onProgress?.(done, list.length, item.path)
+              // 进度回调由外部提供，抛错不应中断 pump 导致外层永不 resolve
+              try {
+                onProgress?.(done, list.length, item.path)
+              } catch {
+                // 忽略回调自身的异常
+              }
               pump()
             })
         }
