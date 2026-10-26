@@ -51,10 +51,11 @@ app.whenReady().then(() => {
   registerAppProtocol(UI_ROOT, DEV_URL)
   ipcMain.handle('library:get', () => getLibraryState())
   ipcMain.handle('library:select', () => selectLibraryRoot(mainWindow))
-  ipcMain.handle('export:start', (event, relPaths: string[], jobId: string) => {
+  ipcMain.handle('export:start', (event, relPaths: unknown, jobId: string) => {
+    if (!Array.isArray(relPaths)) throw new Error('导出清单格式错误')
     const win = BrowserWindow.fromWebContents(event.sender)
     if (!win) throw new Error('窗口已关闭')
-    return exportZip(win, relPaths, jobId)
+    return exportZip(win, relPaths as string[], jobId)
   })
   ipcMain.on('export:cancel', (_event, jobId: string) => cancelExport(jobId))
   createWindow()
