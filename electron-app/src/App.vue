@@ -22,7 +22,6 @@ import { RouterView } from 'vue-router'
 import AppRail from '@/components/AppRail.vue'
 import LibraryGate from '@/components/LibraryGate.vue'
 import ToastHost from '@/components/ToastHost.vue'
-// Task 11 接入完整清单抽屉，这里先使用最小占位版
 import BomDrawer from '@/components/bom/BomDrawer.vue'
 import { useLibraryStore } from '@/stores/library'
 import { useBomStore } from '@/stores/bom'
