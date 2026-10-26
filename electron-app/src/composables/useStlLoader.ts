@@ -15,6 +15,13 @@ export interface LoadedPart {
   bytes: number
 }
 
+export interface LoadOptions {
+  /** 跳过 72 MiB 上限（单件预览用） */
+  allowLarge?: boolean
+  /** 不写入缓存（大文件避免挤占缓存） */
+  skipCache?: boolean
+}
+
 /** 清单里的原始文件体积，模块顶层建一次，用于下载前预判 oversized */
 const SIZE_BY_PATH = new Map(VAULT_DATA.files.map((f) => [f.p, f.s]))
 
@@ -68,6 +75,10 @@ function getWorker(): Worker {
     worker.onerror = () => {
       for (const waiter of parseWaiters.values()) waiter.reject(new Error('STL 解析 Worker 异常'))
       parseWaiters.clear()
+      // Worker 已不可用：终止并置空，下次 getWorker() 会重建，
+      // 否则后续 postMessage 投递到死 worker 永不回包，pending 永远清不掉
+      worker?.terminate()
+      worker = null
     }
   }
   return worker
@@ -103,10 +114,17 @@ function trimCache(): void {
   }
 }
 
-async function fetchOne(path: string, category: string): Promise<LoadedPart> {
-  // 用清单体积在下载前预判，避免白下载超大文件
+async function fetchOne(
+  path: string,
+  category: string,
+  opts?: LoadOptions,
+): Promise<LoadedPart> {
+  const allowLarge = opts?.allowLarge === true
+  const skipCache = opts?.skipCache === true
+
+  // 用清单体积在下载前预判，避免白下载超大文件（单件预览显式放行）
   const declared = SIZE_BY_PATH.get(path)
-  if (declared !== undefined && declared > MAX_PART_BYTES) throw new Error('oversized')
+  if (!allowLarge && declared !== undefined && declared > MAX_PART_BYTES) throw new Error('oversized')
 
   const response = await fetch(stlUrl(path))
   if (!response.ok) {
@@ -114,7 +132,7 @@ async function fetchOne(path: string, category: string): Promise<LoadedPart> {
   }
   const buffer = await response.arrayBuffer()
   // 清单体积可能缺失或不准确，下载后再兜底检查一次
-  if (buffer.byteLength > MAX_PART_BYTES) throw new Error('oversized')
+  if (!allowLarge && buffer.byteLength > MAX_PART_BYTES) throw new Error('oversized')
 
   const parsed = await parseInWorker(buffer)
 
@@ -135,19 +153,22 @@ async function fetchOne(path: string, category: string): Promise<LoadedPart> {
     triangles: parsed.triangles,
     bytes: quantized.positions.byteLength,
   }
-  cache.set(path, part)
-  cacheBytes += part.bytes
-  trimCache()
+  // 单件预览的大文件不写缓存，避免把 180 MiB 预算挤占掉
+  if (!skipCache) {
+    cache.set(path, part)
+    cacheBytes += part.bytes
+    trimCache()
+  }
   return part
 }
 
 export function useStlLoader() {
-  function load(path: string, category: string): Promise<LoadedPart> {
+  function load(path: string, category: string, opts?: LoadOptions): Promise<LoadedPart> {
     const cached = cache.get(path)
     if (cached) return Promise.resolve(cached)
     const inflight = pending.get(path)
     if (inflight) return inflight
-    const job = fetchOne(path, category).finally(() => pending.delete(path))
+    const job = fetchOne(path, category, opts).finally(() => pending.delete(path))
     pending.set(path, job)
     return job
   }

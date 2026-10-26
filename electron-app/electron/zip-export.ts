@@ -86,6 +86,8 @@ export async function exportZip(
   // 供失败/取消时的进度载荷复用最后一个已知进度，而不是重置为 0
   let lastDone = 0
   let lastFile = ''
+  // 写入已完整成功但替换目标失败时，临时文件要保留给用户手动取回
+  let keepTemp = false
 
   const emit = (patch: Partial<ExportProgress>) => {
     if (win.isDestroyed()) return
@@ -175,7 +177,15 @@ export async function exportZip(
     if (streamError) throw streamError
 
     // 全部写入成功，用临时文件原子替换目标文件
-    renameSync(tempPath, target.filePath)
+    try {
+      renameSync(tempPath, target.filePath)
+    } catch (renameError) {
+      // 临时文件里是完整可用的 ZIP，替换失败时保留它，并在错误信息里给出路径
+      keepTemp = true
+      throw new Error(
+        `写入完成但无法替换目标文件（临时文件保留在 ${tempPath}）：${(renameError as Error).message}`,
+      )
+    }
 
     lastDone = relPaths.length
     emit({ done: relPaths.length, state: 'done' })
@@ -183,11 +193,13 @@ export async function exportZip(
   } catch (error) {
     out.destroy()
     await closed
-    try {
-      // 只删临时文件，绝不触碰用户原有文件
-      unlinkSync(tempPath)
-    } catch {
-      // 文件可能根本没创建，忽略
+    if (!keepTemp) {
+      try {
+        // 只删临时文件，绝不触碰用户原有文件
+        unlinkSync(tempPath)
+      } catch {
+        // 文件可能根本没创建，忽略
+      }
     }
     const canceled = (error as Error).message === 'canceled'
     emit({

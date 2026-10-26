@@ -70,7 +70,12 @@ function viewDistance(radius: number): number {
 
 onMounted(async () => {
   try {
-    const part = await load(props.path, props.category ?? 'other')
+    const part = await load(props.path, props.category ?? 'other', {
+      // 单件预览正是要看装配视图主动省略的大件，放行 72 MiB 上限
+      allowLarge: true,
+      // 大件不写共享缓存，避免挤占 180 MiB 预算
+      skipCache: true,
+    })
     if (!alive) return
 
     // 复用装配视图的几何构建：顶点已按包围盒中心归零，模型必然居中
@@ -189,6 +194,8 @@ header b {
 .stage {
   position: relative;
   flex: 1;
+  /* canvas 的固有高度会让 flex 项无法收缩，导致页脚被挤出面板（overflow:hidden 裁掉） */
+  min-height: 0;
   background: var(--stage, #131310);
 }
 .host {

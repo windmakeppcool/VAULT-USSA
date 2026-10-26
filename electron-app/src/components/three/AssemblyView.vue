@@ -1,5 +1,11 @@
 <template>
-  <div class="assembly-view">
+  <div
+    class="assembly-view"
+    @pointerdown="onPointerDown"
+    @pointerup="onPointerUp"
+    @pointermove="onPointerMove"
+    @pointerleave="onPointerLeave"
+  >
     <ThreeCanvas ref="canvas" />
     <div class="hud">
       <span class="hud-kicker">LIVE ASSEMBLY</span>
@@ -34,7 +40,10 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import ThreeCanvas from './ThreeCanvas.vue'
 import { useAssembly } from '@/composables/useAssembly'
+import { useStlLoader } from '@/composables/useStlLoader'
 import { useColorStore } from '@/stores/color'
+import { useLibraryStore } from '@/stores/library'
+import { toast } from '@/composables/useToast'
 
 const props = defineProps<{
   /** 展示标题；省略时使用默认文案 */
@@ -47,12 +56,21 @@ const emit = defineEmits<{ loaded: [count: number] }>()
 
 const canvas = ref<InstanceType<typeof ThreeCanvas> | null>(null)
 const colorStore = useColorStore()
+const library = useLibraryStore()
 const assembly = useAssembly()
+const { clear: clearStlCache } = useStlLoader()
 
 const explodeValue = ref(0)
 const ready = ref(false)
 const status = ref('')
 const stats = ref('—')
+
+/** 当前选中的配色键（未被悬停覆盖时保持高亮） */
+const selected = ref<string | null>(null)
+/** 当前悬停的配色键 */
+const hovered = ref<string | null>(null)
+/** 按下位置，用于区分「点击拾取」与「拖动旋转视角」 */
+let downAt: { x: number; y: number } | null = null
 
 const displayTitle = computed(() => props.title ?? '组合装配')
 
@@ -87,6 +105,17 @@ watch(
     assembly.recolor((colorKey) => colorStore.colorFor(colorKey))
   },
   { deep: true },
+)
+
+// 切换 STL 库后相对路径可能指向完全不同的几何：清空几何缓存并重建。
+// 不清理会把旧库的网格按相同路径继续复用。
+watch(
+  () => library.root,
+  (root) => {
+    if (!root) return
+    clearStlCache()
+    void runBuild(props.parts)
+  },
 )
 
 async function runBuild(list: { path: string; category: string }[]): Promise<void> {
@@ -146,6 +175,48 @@ function onExplode(event: Event): void {
   const value = Number((event.target as HTMLInputElement).value)
   explodeValue.value = value
   assembly.setExplode(value)
+}
+
+/** 记录左键按下位置，抬起时位移很小才算点击，避免转动视角时误触 */
+function onPointerDown(event: PointerEvent): void {
+  if (event.button === 0) downAt = { x: event.clientX, y: event.clientY }
+}
+
+function onPointerUp(event: PointerEvent): void {
+  if (!downAt) return
+  const moved = Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y)
+  downAt = null
+  if (moved > 4) return
+
+  const hit = assembly.pick(event.clientX, event.clientY)
+  if (!hit) return
+
+  if (colorStore.dyeMode) {
+    // 染色模式：按画笔色覆盖命中部件所属配色键（材质按 colorKey 共享，一次全变）
+    colorStore.setColor(hit.colorKey, colorStore.brushColor)
+    toast(`已上色：${hit.name}`, 'info')
+  } else {
+    selected.value = hit.colorKey
+    assembly.setHighlight(hit.colorKey)
+  }
+}
+
+/** 悬停预览高亮；染色模式下不做悬停，避免与上色反馈混淆 */
+function onPointerMove(event: PointerEvent): void {
+  if (colorStore.dyeMode) return
+  // 拖动旋转视角时不做拾取：既避免与 OrbitControls 抢事件，也省掉每帧 raycast
+  if (event.buttons !== 0) return
+  const hit = assembly.pick(event.clientX, event.clientY)
+  const key = hit?.colorKey ?? null
+  if (key !== hovered.value) {
+    hovered.value = key
+    assembly.setHighlight(key ?? selected.value)
+  }
+}
+
+function onPointerLeave(): void {
+  hovered.value = null
+  assembly.setHighlight(selected.value)
 }
 
 onBeforeUnmount(() => {

@@ -9,6 +9,7 @@
           <span class="family">{{ familyLabel(rowFor(virtual.index)?.f) }}</span>
           <span class="category">{{ rowFor(virtual.index)?.c ?? '' }}</span>
           <span class="support">{{ rowFor(virtual.index)?.u ? '需支撑' : '' }}</span>
+          <button type="button" class="preview" @click="previewEntry(rowFor(virtual.index))">预览</button>
           <button type="button" @click="addEntry(rowFor(virtual.index))">加入</button>
         </div>
       </div>
@@ -23,10 +24,12 @@ import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useBomStore } from '@/stores/bom'
 import { FAMILY_LABELS } from '@/stores/config'
 import { toast } from '@/composables/useToast'
+import { usePreview } from '@/composables/usePreview'
 import type { ManifestEntry } from '@/data/types'
 
 const props = defineProps<{ entries: ManifestEntry[] }>()
 const bom = useBomStore()
+const preview = usePreview()
 
 const ROW_HEIGHT = 32
 const scrollRef = ref<HTMLElement | null>(null)
@@ -68,6 +71,12 @@ function addEntry(entry: ManifestEntry | undefined): void {
   bom.add(entry.p, entry.n, entry.q, entry.c)
   toast(`已加入：${entry.n}`)
 }
+
+/** 打开全局单件预览（App.vue 中挂载的 SinglePreview 弹窗） */
+function previewEntry(entry: ManifestEntry | undefined): void {
+  if (!entry) return
+  preview.open({ path: entry.p, name: entry.n, category: entry.c })
+}
 </script>
 
 <style scoped>
@@ -88,7 +97,7 @@ function addEntry(entry: ManifestEntry | undefined): void {
 }
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 60px 110px 60px 56px;
+  grid-template-columns: minmax(0, 1fr) 60px 110px 60px 48px 48px;
   align-items: center;
   gap: 10px;
   height: 32px;

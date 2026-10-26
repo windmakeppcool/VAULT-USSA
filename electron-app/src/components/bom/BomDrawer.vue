@@ -23,7 +23,7 @@
           <b>本地 STL 库</b>
           <span :title="library.ready ? library.root ?? '' : undefined">{{ librarySummary }}</span>
         </div>
-        <button @click="library.choose()">更换目录</button>
+        <button :disabled="exporting" @click="library.choose()">更换目录</button>
       </section>
 
       <section class="progress">
@@ -292,6 +292,12 @@ onBeforeUnmount(() => {
 .library button:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+.library button:disabled {
+  opacity: 0.4;
+  cursor: default;
+  border-color: var(--line);
+  color: inherit;
 }
 .progress {
   display: grid;

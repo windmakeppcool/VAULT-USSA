@@ -44,6 +44,7 @@
     <ul class="parts">
       <li v-for="entry in config.matchedParts.slice(0, 60)" :key="entry.p">
         <span class="name" :title="entry.p">{{ entry.n }}</span>
+        <button class="preview" @click="previewPart(entry)">预览</button>
         <button class="add" @click="addToBom(entry)">加入清单</button>
       </li>
     </ul>
@@ -55,10 +56,12 @@ import { computed } from 'vue'
 import { FAMILY_OPTIONS, useConfigStore } from '@/stores/config'
 import { useBomStore } from '@/stores/bom'
 import { toast } from '@/composables/useToast'
+import { usePreview } from '@/composables/usePreview'
 import type { ManifestEntry } from '@/data/types'
 
 const config = useConfigStore()
 const bom = useBomStore()
+const preview = usePreview()
 
 const modes = [
   { id: 'drawer' as const, no: '01', label: '抽屉' },
@@ -73,6 +76,11 @@ const heights = ['1F', '2F', '4F']
 function addToBom(entry: ManifestEntry): void {
   bom.add(entry.p, entry.n, entry.q, entry.c)
   toast(`已加入：${entry.n}`)
+}
+
+/** 打开全局单件预览（App.vue 中挂载的 SinglePreview 弹窗） */
+function previewPart(entry: ManifestEntry): void {
+  preview.open({ path: entry.p, name: entry.n, category: entry.c })
 }
 </script>
 
@@ -197,7 +205,8 @@ h2 {
   white-space: nowrap;
   font-size: 11px;
 }
-.add {
+.add,
+.preview {
   flex-shrink: 0;
   padding: 3px 9px;
   font-size: 10px;
@@ -206,7 +215,8 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 2px;
 }
-.add:hover {
+.add:hover,
+.preview:hover {
   color: var(--paper-hi);
   background: var(--accent);
   border-color: var(--accent);

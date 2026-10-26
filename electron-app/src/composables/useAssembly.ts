@@ -9,6 +9,8 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  Raycaster,
+  Vector2,
   Vector3,
 } from 'three'
 import type { PerspectiveCamera } from 'three'
@@ -46,6 +48,10 @@ const PLACEHOLDER_SIZE: Vec3 = [50, 50, 50]
 
 /** 布局是 Z 轴朝上，three.js 场景是 Y 轴朝上，与旧实现一样旋转根节点 */
 const LAYOUT_TO_SCENE = -Math.PI / 2
+
+/** 拾取用的复用实例：pointermove 每帧都会调用，避免反复分配 */
+const raycaster = new Raycaster()
+const pointer = new Vector2()
 
 /**
  * 拆分件标记：清单的 k 字段标识 Part 1 / Part 2。
@@ -85,6 +91,13 @@ function colorKeyOf(path: string, category: string): string {
 export interface AssemblyInput {
   path: string
   category: string
+}
+
+/** 拾取结果：命中网格携带的配色键与显示信息 */
+export interface PickResult {
+  colorKey: string
+  category: string
+  name: string
 }
 
 export interface AssemblyResult {
@@ -294,12 +307,14 @@ export function useAssembly() {
       const key = item.entry.part.key ?? ''
       const category = item.entry.part.category
       let mesh: Mesh
+      /** 真实部件才有配色键；占位件不参与拾取染色 */
+      let colorKey: string | null = null
 
       const part = keptByPath.get(key)
       if (part) {
         const geometry = geometryFromQuantized(part)
         // 材质按配色键共享：同键的部件复用同一材质，改色一次即可全部回流
-        const colorKey = colorKeyOf(key, category)
+        colorKey = colorKeyOf(key, category)
         let material = materialCache.get(colorKey)
         if (!material) {
           material = new MeshStandardMaterial({
@@ -326,6 +341,11 @@ export function useAssembly() {
       } else {
         // 未知 key（理论上不会发生）：跳过，避免错配到别的部件
         continue
+      }
+
+      // 拾取与染色依赖这几个字段：raycast 命中后按 colorKey 反查材质和部件
+      if (colorKey) {
+        mesh.userData = { colorKey, category, name: displayNameOf(key) }
       }
 
       mesh.quaternion.set(...item.entry.quat)
@@ -446,5 +466,47 @@ export function useAssembly() {
     stage?.invalidate()
   }
 
-  return { attach, build, setExplode, setView, reset, recolor }
+  /**
+   * 用屏幕坐标做 raycast 拾取，返回命中网格的 colorKey。
+   * 占位线框没有 colorKey，会被跳过；未命中返回 null。
+   */
+  function pick(clientX: number, clientY: number): PickResult | null {
+    if (!stage || !root) return null
+    const rect = stage.renderer.domElement.getBoundingClientRect()
+    if (!rect.width || !rect.height) return null
+    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1
+    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1
+
+    // 构建后可能还没渲染过一帧，矩阵可能仍是陈旧值，拾取前同步一次
+    stage.camera.updateMatrixWorld()
+    root.updateWorldMatrix(true, true)
+    raycaster.setFromCamera(pointer, stage.camera)
+
+    const hits = raycaster.intersectObjects(root.children, true)
+    for (const hit of hits) {
+      const data = hit.object.userData as Partial<PickResult>
+      if (data?.colorKey) {
+        return {
+          colorKey: data.colorKey,
+          category: data.category ?? '',
+          name: data.name ?? '',
+        }
+      }
+    }
+    return null
+  }
+
+  /** 高亮某个 colorKey 的所有网格；传 null 取消高亮 */
+  function setHighlight(colorKey: string | null): void {
+    for (const [key, material] of materialCache) {
+      if (key === colorKey) {
+        material.emissive.setHex(0x552200)
+      } else {
+        material.emissive.setHex(0x000000)
+      }
+    }
+    stage?.invalidate()
+  }
+
+  return { attach, build, setExplode, setView, reset, recolor, pick, setHighlight }
 }
