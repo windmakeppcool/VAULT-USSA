@@ -58,3 +58,61 @@ describe('堆叠布局', () => {
     expect(roofs.every((r) => r.entry.part.split > 0)).toBe(true)
   })
 })
+
+describe('小件 3 列网格排布', () => {
+  const bodyW = 100
+  const bodyD = 80
+  const smallSize: Vec3 = [10, 10, 10]
+
+  /** 盒体 + 4 个 divider（divider 不在 ANCHORED 中，走小件网格） */
+  function smallGrid() {
+    const placed = layout([
+      part('box', [bodyW, bodyD, 40]),
+      part('divider', smallSize),
+      part('divider', smallSize),
+      part('divider', smallSize),
+      part('divider', smallSize),
+    ])!
+    return placed.filter((p) => p.entry.part.category === 'divider')
+  }
+
+  it('按 3 列网格定位：列间距 65、行间距 75', () => {
+    const dividers = smallGrid()
+    expect(dividers).toHaveLength(4)
+    // 第 0 个：col=0、row=0 → x = bodyW*0.72 + 0*65 + gap*0.5，y = bodyD*0.35
+    const baseX = bodyW * 0.72 + LAYOUT_GAP * 0.5
+    expect(dividers[0].center[0]).toBeCloseTo(baseX, 6)
+    expect(dividers[0].center[1]).toBeCloseTo(bodyD * 0.35, 6)
+    // 第 1 个：col=1 → x 比第 0 个多 65
+    expect(dividers[1].center[0] - dividers[0].center[0]).toBeCloseTo(65, 6)
+    // 第 3 个：col=0、row=1 → x 与第 0 个相同，y 比第 0 个少 75
+    expect(dividers[3].center[0]).toBeCloseTo(dividers[0].center[0], 6)
+    expect(dividers[0].center[1] - dividers[3].center[1]).toBeCloseTo(75, 6)
+  })
+
+  it('所有小件 z = max(0, size[2]/2)', () => {
+    for (const d of smallGrid()) {
+      expect(d.center[2]).toBeCloseTo(Math.max(0, smallSize[2] / 2), 6)
+    }
+  })
+})
+
+describe('背板层叠与提手层', () => {
+  it('背板依次向后层叠、提手位于顶盖之上', () => {
+    const bodyD = 80
+    const topZ = 40
+    const placed = layout([
+      part('box', [100, bodyD, topZ]),
+      part('backpanel', [20, 5, 40]),
+      part('backbone', [20, 5, 40]),
+      part('handle', [40, 10, 5]),
+    ])!
+    const backpanel = placed.find((p) => p.entry.part.category === 'backpanel')!
+    const backbone = placed.find((p) => p.entry.part.category === 'backbone')!
+    const handle = placed.find((p) => p.entry.part.category === 'handle')!
+
+    expect(backpanel.center[1]).toBeCloseTo(bodyD * 0.8 + LAYOUT_GAP + 5 / 2, 6)
+    expect(backbone.center[1]).toBeGreaterThan(backpanel.center[1])
+    expect(handle.center[2]).toBeGreaterThan(topZ + LAYOUT_GAP)
+  })
+})

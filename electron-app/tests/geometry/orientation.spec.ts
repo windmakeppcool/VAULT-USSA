@@ -4,6 +4,7 @@ import {
   quatFromMatrix3,
   rotatedBoxSize,
   canonicalize,
+  flatOrientation,
 } from '@/lib/geometry/orientation'
 import type { QuantizedMesh } from '@/lib/geometry/orientation'
 import type { Vec3 } from '@/lib/geometry/vector'
@@ -12,6 +13,27 @@ const unitBox: QuantizedMesh = {
   positions: new Uint16Array([0, 0, 0, 65535, 0, 0, 0, 65535, 0, 65535, 65535, 65535]),
   minimum: [0, 0, 0],
   maximum: [10, 20, 30],
+}
+
+/**
+ * 构造 40×20×4 薄板的 8 个角点，按 pos = round((v - min)/(max-min) * 65535) 量化。
+ * 顶点为点云，用于 PCA 主轴拟合。
+ */
+function thinPlateMesh(): QuantizedMesh {
+  const minimum: Vec3 = [0, 0, 0]
+  const maximum: Vec3 = [40, 20, 4]
+  const values: number[] = []
+  for (const x of [minimum[0], maximum[0]]) {
+    for (const y of [minimum[1], maximum[1]]) {
+      for (const z of [minimum[2], maximum[2]]) {
+        const v: Vec3 = [x, y, z]
+        for (let a = 0; a < 3; a++) {
+          values.push(Math.round(((v[a] - minimum[a]) / (maximum[a] - minimum[a])) * 65535))
+        }
+      }
+    }
+  }
+  return { positions: new Uint16Array(values), minimum, maximum }
 }
 
 describe('量化还原', () => {
@@ -75,5 +97,24 @@ describe('canonicalize 兜底规则', () => {
     const result = canonicalize(mesh, 'module', '不存在的路径.stl')
     expect(result.quat[0]).toBeCloseTo(Math.SQRT1_2, 10)
     expect(result.size).toEqual([10, 30, 5] as Vec3)
+  })
+})
+
+describe('PCA 主轴姿态', () => {
+  it('薄板 roof 主轴拟合出排序边长 [4, 20, 40] 且四元数归一', () => {
+    const result = flatOrientation(thinPlateMesh(), 'roof')
+    const sorted = [...result.size].sort((a, b) => a - b)
+    expect(sorted[0]).toBeCloseTo(4, 0)
+    expect(sorted[1]).toBeCloseTo(20, 0)
+    expect(sorted[2]).toBeCloseTo(40, 0)
+    const [x, y, z, w] = result.quat
+    expect(Math.hypot(x, y, z, w)).toBeCloseTo(1, 6)
+  })
+
+  it('baseplate 翻转规则：结构合法（不锁定具体方向）', () => {
+    const result = flatOrientation(thinPlateMesh(), 'baseplate')
+    const [x, y, z, w] = result.quat
+    expect(Math.hypot(x, y, z, w)).toBeCloseTo(1, 6)
+    for (const v of result.size) expect(v).toBeGreaterThan(0)
   })
 })
