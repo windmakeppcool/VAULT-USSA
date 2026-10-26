@@ -7,6 +7,12 @@ export interface LayoutPart {
   category: string
   name: string
   split: number
+  /**
+   * 完整路径，供调用方按路径唯一反查部件。
+   * 清单中存在同名 STL，仅靠 name 会错配。
+   * 设为可选以兼容只关心布局几何的旧调用方；装配视图总是填入。
+   */
+  key?: string
 }
 
 export interface LayoutInput {
