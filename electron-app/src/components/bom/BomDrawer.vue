@@ -1,8 +1,8 @@
 <template>
-  <aside v-if="open" class="drawer">
+  <aside v-if="open" class="drawer" role="dialog" aria-modal="true" aria-label="打印清单">
     <header>
       <b>打印清单</b>
-      <button @click="$emit('update:open', false)">×</button>
+      <button aria-label="关闭清单" @click="$emit('update:open', false)">×</button>
     </header>
     <p>清单功能待接入</p>
   </aside>

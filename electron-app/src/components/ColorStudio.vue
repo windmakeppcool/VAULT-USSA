@@ -23,6 +23,7 @@
           :class="{ 'is-active': color.brushColor === sw.hex }"
           :style="{ background: sw.hex }"
           :title="`${sw.name} ${sw.hex}`"
+          :aria-label="`${sw.name} ${sw.hex}`"
           @click="color.brushColor = sw.hex"
         />
       </div>

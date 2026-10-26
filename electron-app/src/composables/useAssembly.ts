@@ -133,6 +133,8 @@ export function useAssembly() {
   let stage: ThreeStage | null = null
   let root: Group | null = null
   let lastPlaced: PlacementRecord[] = []
+  /** 按类别共享的材质缓存；提到闭包层，供配色变更时实时回流 */
+  const materialCache = new Map<string, MeshStandardMaterial>()
   let explode = 0
   let explodeSpan = 0
   let frameCenter: Vec3 = [0, 0, 0]
@@ -156,6 +158,8 @@ export function useAssembly() {
       if (material) materials.add(material)
     })
     materials.forEach((material) => material.dispose())
+    // 材质已释放，清空引用，避免 reset 后 recolor 操作已销毁的材质
+    materialCache.clear()
     root = null
     lastPlaced = []
     explodeSpan = 0
@@ -169,6 +173,8 @@ export function useAssembly() {
     if (!stage) throw new Error('渲染器未就绪')
     const current = ++generation
     disposeRoot()
+    // 旧材质已在 disposeRoot 中释放，这里清空引用，避免 recolor 操作已释放的材质
+    materialCache.clear()
     explode = 0
 
     const settled = await loadAll(list)
@@ -253,7 +259,6 @@ export function useAssembly() {
 
     const group = new Group()
     group.rotation.x = LAYOUT_TO_SCENE
-    const materialCache = new Map<string, MeshStandardMaterial>()
     let placeholderMaterial: MeshBasicMaterial | null = null
 
     let partCount = 0
@@ -403,5 +408,16 @@ export function useAssembly() {
     explode = 0
   }
 
-  return { attach, build, setExplode, setView, reset }
+  /**
+   * 配色变更时实时更新已建场景：材质按类别共享，
+   * 每个类别只需改一次颜色，再请求重绘。
+   */
+  function recolor(colorFor: (category: string) => string): void {
+    for (const [category, material] of materialCache) {
+      material.color.set(colorFor(category))
+    }
+    stage?.invalidate()
+  }
+
+  return { attach, build, setExplode, setView, reset, recolor }
 }

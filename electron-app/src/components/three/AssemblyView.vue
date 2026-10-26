@@ -77,7 +77,16 @@ watch(
   (list) => {
     void runBuild(list)
   },
-  { deep: true, immediate: true },
+  { immediate: true },
+)
+
+// 配色改动实时回流到已建场景：材质按类别共享，直接改色即可
+watch(
+  () => colorStore.colors,
+  () => {
+    assembly.recolor((category) => colorStore.colorFor(category))
+  },
+  { deep: true },
 )
 
 async function runBuild(list: { path: string; category: string }[]): Promise<void> {

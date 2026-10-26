@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { VAULT_DATA } from '@/data/manifest'
 import type { ManifestEntry } from '@/data/types'
 
@@ -11,11 +11,58 @@ const GROUP_OF: Record<BuildMode, ManifestEntry['g']> = {
   mod: 'mods',
 }
 
+/**
+ * 各模式可选规格族。manifest 的 f 字段是 ASCII（如 "L2"），
+ * 界面展示用上标（如 "L²"），所以 value 与 label 必须分离。
+ * 可选集合与旧版 configurator/app.js:43-45 保持一致。
+ */
+export const FAMILY_OPTIONS: Record<BuildMode, { value: string; label: string }[]> = {
+  drawer: [
+    { value: 'S', label: 'S' },
+    { value: 'M', label: 'M' },
+    { value: 'L', label: 'L' },
+    { value: 'XL', label: 'XL' },
+    { value: 'L2', label: 'L²' },
+    { value: 'XL2', label: 'XL²' },
+  ],
+  sustainer: [
+    { value: 'S', label: 'S' },
+    { value: 'M', label: 'M' },
+    { value: 'L', label: 'L' },
+    { value: 'XL', label: 'XL' },
+  ],
+  mod: [
+    { value: 'S', label: 'S' },
+    { value: 'M', label: 'M' },
+    { value: 'L', label: 'L' },
+    { value: 'XL', label: 'XL' },
+  ],
+}
+
+/** 族值到界面标签的映射，用于 sheetCode 等展示位置 */
+const FAMILY_LABELS: Record<string, string> = Object.fromEntries(
+  Object.values(FAMILY_OPTIONS)
+    .flat()
+    .map((option) => [option.value, option.label]),
+)
+
 export const useConfigStore = defineStore('config', () => {
   const mode = ref<BuildMode>('drawer')
   const family = ref<string>('S')
   const size = ref<string>('3')
   const height = ref<string>('1F')
+
+  // 切换模式时把族归一到该模式允许的值，避免继承到不允许的族（如 drawer 的 L2）。
+  // 用同步 flush：赋值后立即读取 matchedParts 也能拿到归一后的正确结果。
+  watch(
+    mode,
+    (next) => {
+      if (!FAMILY_OPTIONS[next].some((option) => option.value === family.value)) {
+        family.value = 'S'
+      }
+    },
+    { flush: 'sync' },
+  )
 
   const matchedParts = computed<ManifestEntry[]>(() => {
     const group = GROUP_OF[mode.value]
@@ -37,9 +84,11 @@ export const useConfigStore = defineStore('config', () => {
     })
   })
 
-  const sheetCode = computed(() =>
-    mode.value === 'mod' ? 'MOD' : `${family.value} / ${size.value} / ${height.value}`,
-  )
+  const sheetCode = computed(() => {
+    if (mode.value === 'mod') return 'MOD'
+    const label = FAMILY_LABELS[family.value] ?? family.value
+    return `${label} / ${size.value} / ${height.value}`
+  })
 
   return { mode, family, size, height, matchedParts, sheetCode }
 })

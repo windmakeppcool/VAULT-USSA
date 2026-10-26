@@ -11,32 +11,31 @@
         v-for="mode in modes"
         :key="mode.id"
         :class="{ 'is-active': config.mode === mode.id }"
+        :aria-pressed="config.mode === mode.id"
         @click="config.mode = mode.id"
       >
         <span>{{ mode.no }}</span><b>{{ mode.label }}</b>
       </button>
     </div>
 
-    <template v-if="config.mode !== 'mod'">
-      <label class="field">
-        <span>规格族 <em>FAMILY</em></span>
-        <select v-model="config.family">
-          <option v-for="f in families" :key="f" :value="f">{{ f }}</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>档位 <em>SIZE</em></span>
-        <select v-model="config.size">
-          <option v-for="s in sizes" :key="s" :value="s">{{ s }}</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>高度 <em>HEIGHT</em></span>
-        <select v-model="config.height">
-          <option v-for="h in heights" :key="h" :value="h">{{ h }}</option>
-        </select>
-      </label>
-    </template>
+    <label class="field">
+      <span>规格族 <em>FAMILY</em></span>
+      <select v-model="config.family">
+        <option v-for="f in families" :key="f.value" :value="f.value">{{ f.label }}</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>档位 <em>SIZE</em></span>
+      <select v-model="config.size">
+        <option v-for="s in sizes" :key="s" :value="s">{{ s }}</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>高度 <em>HEIGHT</em></span>
+      <select v-model="config.height">
+        <option v-for="h in heights" :key="h" :value="h">{{ h }}</option>
+      </select>
+    </label>
 
     <div class="result">
       <span>匹配部件</span><b>{{ config.matchedParts.length }}</b>
@@ -52,7 +51,8 @@
 </template>
 
 <script setup lang="ts">
-import { useConfigStore } from '@/stores/config'
+import { computed } from 'vue'
+import { FAMILY_OPTIONS, useConfigStore } from '@/stores/config'
 import { useBomStore } from '@/stores/bom'
 import { toast } from '@/composables/useToast'
 import type { ManifestEntry } from '@/data/types'
@@ -65,8 +65,8 @@ const modes = [
   { id: 'sustainer' as const, no: '02', label: '收纳箱' },
   { id: 'mod' as const, no: '03', label: '改装件' },
 ]
-// 注意：L² / XL² 中的上标字符必须与 manifest 保持完全一致
-const families = ['S', 'M', 'L', 'L²', 'XL', 'XL²']
+// value 必须是 manifest 的 ASCII 族值（L2 / XL2），展示时才用上标
+const families = computed(() => FAMILY_OPTIONS[config.mode])
 const sizes = ['3', '4', '5', '6', '7']
 const heights = ['1F', '2F', '4F']
 
