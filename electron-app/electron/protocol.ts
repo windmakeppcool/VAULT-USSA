@@ -2,7 +2,7 @@ import { protocol, net } from 'electron'
 import { createReadStream, statSync } from 'node:fs'
 import path from 'node:path'
 import { Readable } from 'node:stream'
-import { resolveWithinRoot } from '../src/lib/path'
+import { isInsideRoot, resolveWithinRoot } from '../src/lib/path'
 import { loadSavedRoot } from './stl-library'
 
 export const APP_SCHEME = 'app'
@@ -44,6 +44,8 @@ function mimeFor(file: string): string {
 
 function streamFile(file: string, status = 200): Response {
   const info = statSync(file)
+  // 目录或特殊文件不能被 createReadStream 读取，提前抛错以便调用方返回 404
+  if (!info.isFile()) throw new Error(`Not a regular file: ${file}`)
   const body = Readable.toWeb(createReadStream(file)) as ReadableStream
   return new Response(body, {
     status,
@@ -64,12 +66,19 @@ export function registerAppProtocol(uiRoot: string, devUrl?: string): void {
   protocol.handle(APP_SCHEME, async (request) => {
     const url = new URL(request.url)
     const host = url.hostname
-    const rawPath = decodeURIComponent(url.pathname.replace(/^\/+/, ''))
+    let rawPath: string
+    try {
+      rawPath = decodeURIComponent(url.pathname.replace(/^\/+/, ''))
+    } catch {
+      // 畸形百分号编码（如 %E0%A4%A）会抛 URIError
+      return new Response('Bad Request', { status: 400 })
+    }
 
     if (host === 'ui') {
       if (devUrl) return net.fetch(devUrl + url.pathname + url.search)
       const file = path.join(uiRoot, rawPath || 'index.html')
-      if (!file.startsWith(path.resolve(uiRoot))) {
+      // 按路径段判断，避免前缀比较被 ../ 穿越绕过
+      if (!isInsideRoot(uiRoot, file)) {
         return new Response('Forbidden', { status: 403 })
       }
       try {

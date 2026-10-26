@@ -62,4 +62,21 @@ describe('resolveWithinRoot', () => {
   it('空路径返回 null', () => {
     expect(resolveWithinRoot(ROOT, '')).toBeNull()
   })
+
+  it('反斜杠穿越返回 null', () => {
+    expect(resolveWithinRoot(ROOT, '..\\secret.txt')).toBeNull()
+  })
+
+  it('URL 编码的穿越在解码后被拒绝（与 protocol.ts 的调用顺序一致）', () => {
+    // protocol.ts 先 decodeURIComponent 再交给 resolveWithinRoot
+    const decoded = decodeURIComponent('%2e%2e%2fsecret.txt')
+    expect(decoded).toBe('../secret.txt')
+    expect(resolveWithinRoot(ROOT, decoded)).toBeNull()
+  })
+})
+
+describe('以两个点开头的合法名称', () => {
+  it('..foo 这类子目录不应被判为越界', () => {
+    expect(isInsideRoot(ROOT, path.join(ROOT, '..foo', 'a.stl'))).toBe(true)
+  })
 })
