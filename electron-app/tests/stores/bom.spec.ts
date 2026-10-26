@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useBomStore } from '@/stores/bom'
+import { VAULT_DATA } from '@/data/manifest'
 
 describe('打印清单 store', () => {
   beforeEach(() => {
@@ -87,5 +88,23 @@ describe('打印清单 store', () => {
     const snapshot = localStorage.getItem(bom.storageKey)
     expect(snapshot).toBeTruthy()
     expect(JSON.parse(snapshot!).items[0].qty).toBe(4)
+  })
+
+  it('totalBytes 按份数累加清单体积', () => {
+    const bom = useBomStore()
+    const entry = VAULT_DATA.files[0]
+    bom.add(entry.p, entry.n, 3)
+    expect(bom.totalBytes).toBe(entry.s * 3)
+  })
+
+  it('新 key 不存在时从旧版 vault-ussat-config-v1 迁移清单', () => {
+    localStorage.clear()
+    localStorage.setItem('vault-ussat-config-v1', JSON.stringify({
+      bom: [{ p: '01. DRAWERS/x.stl', q: 2, g: '抽屉', done: true }],
+    }))
+    setActivePinia(createPinia())
+    const bom = useBomStore()
+    expect(bom.items).toHaveLength(1)
+    expect(bom.items[0]).toMatchObject({ path: '01. DRAWERS/x.stl', qty: 2, done: true })
   })
 })

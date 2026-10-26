@@ -17,15 +17,25 @@ export const useConfigStore = defineStore('config', () => {
   const size = ref<string>('3')
   const height = ref<string>('1F')
 
-  const matchedParts = computed<ManifestEntry[]>(() =>
-    VAULT_DATA.files.filter(
-      (entry) =>
-        entry.g === GROUP_OF[mode.value] &&
-        (mode.value === 'mod' || entry.f === family.value) &&
-        (mode.value === 'mod' || !entry.z || entry.z === size.value) &&
-        (mode.value === 'mod' || !entry.h || entry.h === height.value),
-    ),
-  )
+  const matchedParts = computed<ManifestEntry[]>(() => {
+    const group = GROUP_OF[mode.value]
+    const isMod = mode.value === 'mod'
+    return VAULT_DATA.files.filter((entry) => {
+      if (entry.g !== group) return false
+      if (isMod) {
+        // 旧版改装件规则：通用族 U 恒通过，null 字段表示不限制
+        if (entry.f && entry.f !== 'U' && entry.f !== family.value) return false
+        if (entry.z && entry.z !== size.value) return false
+        if (entry.h && entry.h !== height.value) return false
+        return true
+      }
+      // 抽屉 / 支撑沿用旧版的严格族匹配，U 族不参与
+      if (entry.f !== family.value) return false
+      if (entry.z && entry.z !== size.value) return false
+      if (entry.h && entry.h !== height.value) return false
+      return true
+    })
+  })
 
   const sheetCode = computed(() =>
     mode.value === 'mod' ? 'MOD' : `${family.value} / ${size.value} / ${height.value}`,

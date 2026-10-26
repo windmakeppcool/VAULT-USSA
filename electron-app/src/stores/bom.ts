@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
+import { VAULT_DATA } from '@/data/manifest'
 import type { SceneGroup } from '@/data/types'
 
 export interface BomItem {
@@ -12,11 +13,40 @@ export interface BomItem {
 }
 
 const STORAGE_KEY = 'vault-ussa-bom-v2'
-const clampQty = (value: number) => Math.max(1, Math.floor(Number(value) || 1))
+const LEGACY_KEY = 'vault-ussat-config-v1'
+const clampQty = (value: number) => {
+  const n = Math.floor(Number(value) || 1)
+  return Number.isFinite(n) ? Math.max(1, n) : 1
+}
+
+// 路径 → 字节数，模块顶层建一次，供 totalBytes 派生计算复用
+const SIZE_BY_PATH = new Map(VAULT_DATA.files.map((f) => [f.p, f.s]))
 
 export const useBomStore = defineStore('bom', () => {
   const storageKey = STORAGE_KEY
   const items = ref<BomItem[]>([])
+
+  function loadLegacy(): BomItem[] {
+    try {
+      const raw = localStorage.getItem(LEGACY_KEY)
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      const bom = parsed?.bom
+      if (!Array.isArray(bom)) return []
+      return bom
+        .filter((i: { p?: unknown }) => typeof i?.p === 'string' && i.p)
+        .map((i: { p: string; q?: number; done?: boolean }) => ({
+          path: i.p,
+          name: i.p.split('/').pop() ?? i.p,
+          qty: clampQty(i.q ?? 1),
+          done: Boolean(i.done),
+          batchStatus: 'pending' as const,
+          colorKey: '',
+        }))
+    } catch {
+      return []
+    }
+  }
 
   function load(): void {
     try {
@@ -36,6 +66,10 @@ export const useBomStore = defineStore('bom', () => {
     } catch {
       items.value = []
     }
+    // 新 key 不存在、解析失败或没有有效条目时，尝试迁移旧版清单数据
+    if (items.value.length === 0) {
+      items.value = loadLegacy()
+    }
   }
 
   function persist(): void {
@@ -51,6 +85,9 @@ export const useBomStore = defineStore('bom', () => {
 
   const fileCount = computed(() => items.value.length)
   const totalQty = computed(() => items.value.reduce((sum, i) => sum + i.qty, 0))
+  const totalBytes = computed(() =>
+    items.value.reduce((sum, i) => sum + (SIZE_BY_PATH.get(i.path) ?? 0) * i.qty, 0),
+  )
   const doneCount = computed(() => items.value.filter((i) => i.done).length)
   const progress = computed(() =>
     items.value.length === 0 ? 0 : Math.round((doneCount.value / items.value.length) * 100),
@@ -115,6 +152,7 @@ export const useBomStore = defineStore('bom', () => {
     items,
     fileCount,
     totalQty,
+    totalBytes,
     doneCount,
     progress,
     add,

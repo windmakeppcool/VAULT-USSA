@@ -25,14 +25,19 @@ describe('构型 store', () => {
     expect(config.matchedParts.length).not.toBe(first)
   })
 
-  it('改装件模式不受族群与档位限制', () => {
+  it('改装件模式按族群与档位过滤（U 族恒通过）', () => {
     const config = useConfigStore()
     config.mode = 'mod'
-    config.family = '不存在的族'
-    expect(config.matchedParts.length).toBeGreaterThan(0)
-    for (const part of config.matchedParts) {
+    config.family = 'S'
+    const s = config.matchedParts
+    expect(s.length).toBeGreaterThan(0)
+    for (const part of s) {
       expect(part.g).toBe('mods')
+      expect(part.f === null || part.f === 'U' || part.f === 'S').toBe(true)
     }
+    config.family = 'XL'
+    const xl = config.matchedParts
+    expect(xl.map((p) => p.p)).not.toEqual(s.map((p) => p.p))
   })
 
   it('sheetCode 反映当前构型', () => {
