@@ -1,6 +1,8 @@
 {
   "name": "vault-ussa",
   "version": "1.0.0",
+  "description": "VAULT / USSA 模块化抽屉系统 STL 配置器",
+  "author": "VAULT USSA",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
