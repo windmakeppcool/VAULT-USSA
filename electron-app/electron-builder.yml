@@ -1,0 +1,20 @@
+appId: com.vaultussa.configurator
+productName: VAULT-USSA
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - dist-electron/**/*
+asar: true
+extraResources:
+  - from: resources/pdf
+    to: pdf
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+portable:
+  artifactName: ${productName}-${version}-portable.exe
+  unicode: true
